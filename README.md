@@ -1,0 +1,111 @@
+# Bootsbaza
+
+Інтернет-магазин-каталог футбольного взуття та екіпіровки. Дані підтягуються
+автоматично з Google Sheets, ціни для покупця рахуються з націнкою, наявність
+розмірів оновлюється у фоні.
+
+Стек: **Next.js 14 (App Router)** + **React** + **Tailwind CSS**, серверні
+API-роути для читання й обробки даних з **Google Sheets API v4** з кешуванням.
+
+---
+
+## Швидкий старт
+
+```bash
+npm install
+cp .env.example .env.local   # додайте GOOGLE_API_KEY
+npm run dev                  # http://localhost:3000
+```
+
+Без ключа Google сайт працює на **демо-даних** (для перевірки верстки).
+Щойно з'явиться `GOOGLE_API_KEY` — підтягуються реальні товари з таблиці.
+
+### Як отримати `GOOGLE_API_KEY`
+
+1. [Google Cloud Console](https://console.cloud.google.com) → створіть проєкт.
+2. **APIs & Services → Library** → увімкніть **Google Sheets API**.
+3. **APIs & Services → Credentials → Create credentials → API key**.
+4. (Рекомендовано) Обмежте ключ на **Google Sheets API**.
+5. Таблиця вже публічна («будь-хто за посиланням»), тож API-ключа достатньо для
+   читання значень і формул `=IMAGE()`.
+
+Сервіс-акаунт (`GOOGLE_SERVICE_ACCOUNT_JSON`) потрібен **лише** якщо фото
+вставлені як об'єкти й доводиться експортувати `.xlsx` через Drive API.
+
+---
+
+## Як це працює
+
+### Джерело даних
+Листи таблиці описані в [`lib/config.ts`](lib/config.ts) (`SHEETS`): назва
+вкладки, slug розділу, підпис у навігації та тип товару. Один запит
+`spreadsheets.get?includeGridData=true` читає всі листи одразу.
+
+### Розрахунок фінальної ціни
+Уся логика — в [`lib/config.ts`](lib/config.ts), змінюється в одному місці:
+
+```ts
+MARKUP = { footwear: 0.15, gear: 0.30 }   // +15% взуття, +30% екіпіровка
+PRICE_ROUND_TO = 10                        // округлення вгору до 10 грн
+finalPrice = ceil(basePrice * (1 + markup) / 10) * 10
+```
+
+Дроп-ціна з колонки **L** використовується лише як база й **ніде не
+виводиться** та не логується в інтерфейсі. Назовні (`/api/catalog`, UI) йде
+тільки `finalPrice`.
+
+### Парсинг листа
+[`lib/parse.ts`](lib/parse.ts) визначає ролі колонок за заголовками
+(фото / код / назва / країна / розміри / ціна / розмірна сітка / примітки) із
+запасною розкладкою A…P. Рядки-роздільники (текст лише в колонці A) стають
+підкатегоріями (Nike Tiempo, Adidas X …). Розмірні колонки — усе між «країна»
+та «ціна», їхні підписи беруться із шапки (тож підходить і для 39–45, і для
+S/M/L).
+
+### Фото
+1. `=IMAGE("url")` → URL береться напряму з `userEnteredValue.formulaValue`.
+2. Вставлені об'єкти → експорт `.xlsx` (Drive API / публічний export),
+   розпакування zip і зіставлення `/xl/media` з рядками через `drawing.xml`
+   ([`lib/xlsxImages.ts`](lib/xlsxImages.ts)).
+3. Fallback → плейсхолдер-іконка бутси (`public/placeholder.svg`).
+
+Фото віддаються через проксі `/api/img`, щоб приховати джерело й обійти
+hotlink-обмеження; при помилці — плейсхолдер.
+
+### Кеш і фонове оновлення
+[`lib/cache.ts`](lib/cache.ts): кеш у пам'яті + stale-while-revalidate, фонове
+оновлення раз на `CACHE_TTL_SECONDS` (за замовчуванням 5 хв). Google API не
+смикається на кожен захід. Час оновлення покупцеві **не показується**.
+
+Примусово скинути кеш (напр. по крону):
+
+```bash
+curl -X POST https://<host>/api/revalidate?token=$REVALIDATE_TOKEN
+```
+
+---
+
+## Структура
+
+```
+app/
+  layout.tsx            корінь, метадані
+  page.tsx              головна: шапка, герой, каталог (SSR з кешу)
+  api/catalog/route.ts  JSON каталогу (без дроп-ціни та без часу оновлення)
+  api/img/route.ts      проксі фото з fallback на плейсхолдер
+  api/revalidate/route.ts  ручний скид кешу
+components/              Logo, CatalogBrowser (вкладки/пошук/фільтри), ProductCard
+lib/
+  config.ts             НАЦІНКА, округлення, список листів, кеш-налаштування
+  sheets.ts             читання Sheets API v4 + збірка каталогу
+  parse.ts              парсинг листа → товари
+  xlsxImages.ts         фолбек фото з .xlsx
+  cache.ts              кеш + фонове оновлення
+  demoData.ts           демо-каталог без ключа
+```
+
+## Деплой
+
+Будь-яка платформа з підтримкою Next.js (Vercel тощо). Задайте змінні
+середовища з `.env.example`. Для регулярного скидання кешу можна повісити крон
+на `POST /api/revalidate`.

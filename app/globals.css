@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #0a0d0b;
+  color: #e7efe9;
+}
+
+/* Тонкий фон-градиент с зелёным свечением */
+body {
+  background-image:
+    radial-gradient(900px 500px at 15% -10%, rgba(34, 224, 107, 0.10), transparent 60%),
+    radial-gradient(700px 500px at 100% 0%, rgba(18, 184, 85, 0.08), transparent 55%);
+  background-attachment: fixed;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

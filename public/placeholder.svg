@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img" aria-label="Bootsbaza">
+  <rect width="400" height="300" fill="#0f1512"/>
+  <g fill="none" stroke="#22e06b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+    <path d="M70 120 q10 -22 42 -22 l40 0 q26 0 40 20 l14 20 q8 12 26 16 l58 12 q26 6 26 30 l0 12 q0 10 -12 10 l-244 0 q-16 0 -16 -18 l0 -66 q0 -6 6 -6 z"/>
+    <path d="M64 196 l268 0"/>
+    <circle cx="118" cy="196" r="6" fill="#22e06b" stroke="none"/>
+    <circle cx="168" cy="196" r="6" fill="#22e06b" stroke="none"/>
+    <circle cx="218" cy="196" r="6" fill="#22e06b" stroke="none"/>
+    <circle cx="268" cy="196" r="6" fill="#22e06b" stroke="none"/>
+  </g>
+  <text x="200" y="250" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#2a3830" letter-spacing="3">BOOTSBAZA</text>
+</svg>
