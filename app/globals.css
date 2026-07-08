@@ -6,30 +6,31 @@
   color-scheme: dark;
 }
 
-html,
-body {
+html {
   background-color: #0a0d0b;
+}
+body {
+  background: transparent;
   color: #e7efe9;
 }
 
-/* Тонкий фон-градиент с зелёным свечением */
-body {
-  background-image:
-    radial-gradient(900px 500px at 15% -10%, rgba(34, 224, 107, 0.10), transparent 60%),
-    radial-gradient(700px 500px at 100% 0%, rgba(18, 184, 85, 0.08), transparent 55%);
-  background-attachment: fixed;
-}
-
-/* Фоновая картинка сайта (если загружен /public/bg.jpg). Приглушена, чтобы не
-   мешать читаемости. Если файла нет — просто ничего не показывается. */
+/* Фоновая картинка сайта (/public/bg.jpg) с тёмным градиентом-оверлеем поверх,
+   чтобы стадион был виден, но текст оставался читаемым. Плюс зелёное свечение. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: url('/bg.jpg') center / cover no-repeat fixed;
-  opacity: 0.1;
   pointer-events: none;
+  background-image:
+    radial-gradient(900px 500px at 15% -8%, rgba(34, 224, 107, 0.12), transparent 60%),
+    linear-gradient(rgba(10, 13, 11, 0.72), rgba(10, 13, 11, 0.9)),
+    url('/bg.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-color: #0a0d0b;
 }
 
 @layer utilities {
