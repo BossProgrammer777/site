@@ -9,8 +9,11 @@ export async function GET(req: NextRequest) {
   const folder = req.nextUrl.searchParams.get('folder') || '';
   if (!folder) return NextResponse.json({ images: [] });
   const ids = await listFolderImages(folder);
-  // lh3 — публичный CDN Google для файлов Drive (быстро, без hotlink-проблем).
-  const images = ids.map((id) => `https://lh3.googleusercontent.com/d/${id}=w1200`);
+  // Проксируем через /api/img (сервер тянет с lh3-CDN Google и стримит) —
+  // так надёжнее, без hotlink/CORS-проблем на клиенте.
+  const images = ids.map(
+    (id) => `/api/img?src=${encodeURIComponent(`https://lh3.googleusercontent.com/d/${id}=w1200`)}`,
+  );
   return NextResponse.json(
     { images },
     { headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400' } },
