@@ -7,10 +7,11 @@
 //   3) fallback                 → null → на фронте показываем плейсхолдер.
 // ---------------------------------------------------------------------------
 
-import { SPREADSHEET_ID, SHEETS, SheetDef } from './config';
+import { SPREADSHEET_ID, SHEETS, SheetDef, sheetBySlug } from './config';
 import { getApiKey, getAccessToken } from './googleAuth';
 import { normalizeGrid, parseSheet, Cell } from './parse';
 import { Catalog, Product, Section } from './types';
+import { getImageIndexRows } from './xlsxImages';
 
 interface RawSheetResponse {
   sheets?: {
@@ -87,4 +88,30 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
 
   const sections = parsed.map(({ sheet, products }) => buildSection(sheet, products));
   return { sections, fetchedAt: Date.now(), source: 'live' };
+}
+
+// --- Диагностика сопоставления фото со строками (для /api/photo-debug) --------
+export async function debugSheetImages(slug: string) {
+  const sheet = sheetBySlug(slug);
+  if (!sheet) return { error: `Раздел "${slug}" не найден` };
+  const grids = await fetchGrids();
+  const products = parseSheet(sheet, grids.get(sheet.title) ?? []);
+  const imageRows = await getImageIndexRows(sheet.title);
+  const imgSet = new Set(imageRows);
+  const missing = products
+    .filter((p) => p._row === undefined || !imgSet.has(p._row))
+    .map((p) => ({ row: p._row, code: p.code, name: p.name }));
+  return {
+    sheet: sheet.title,
+    productCount: products.length,
+    imageCount: imageRows.length,
+    matched: products.length - missing.length,
+    productRows: products.slice(0, 20).map((p) => ({
+      row: p._row,
+      code: p.code,
+      hasImage: p._row !== undefined && imgSet.has(p._row),
+    })),
+    imageRowsFirst20: imageRows.slice(0, 20),
+    missingFirst20: missing.slice(0, 20),
+  };
 }

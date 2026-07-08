@@ -151,3 +151,9 @@ export async function getSheetPhoto(title: string, row: number): Promise<Extract
   const index = await getIndex();
   return index.get(title)?.get(row) ?? null;
 }
+
+/** Диагностика: отсортированные номера строк, к которым привязаны фото на листе. */
+export async function getImageIndexRows(title: string): Promise<number[]> {
+  const index = await getIndex();
+  return Array.from(index.get(title)?.keys() ?? []).sort((a, b) => a - b);
+}
