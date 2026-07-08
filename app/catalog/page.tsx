@@ -1,5 +1,6 @@
 import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
+import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
 
 export const dynamic = 'force-dynamic';
@@ -24,6 +25,7 @@ export default async function CatalogPage({
           initialBrands={initialBrands}
         />
       </main>
+      <SiteFooter />
     </>
   );
 }

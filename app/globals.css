@@ -29,3 +29,36 @@ body {
     scrollbar-width: none;
   }
 }
+
+/* Оформление текстовых информационных страниц */
+.info-content h2 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e7efe9;
+}
+.info-content h3 {
+  margin-top: 1.25rem;
+  margin-bottom: 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #e7efe9;
+}
+.info-content ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+.info-content ul li {
+  margin-top: 0.35rem;
+}
+.info-content strong {
+  color: #e7efe9;
+}
+.info-content a {
+  color: #22e06b;
+  text-decoration: underline;
+}
+.info-content .lead {
+  color: #9fb3a6;
+}

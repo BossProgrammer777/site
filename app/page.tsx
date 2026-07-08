@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,9 +94,7 @@ export default async function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-ink-800 py-8 text-center text-xs text-ink-600 [color:#6b7d71]">
-        © {new Date().getFullYear()} Bootsbaza — інтернет-магазин футбольної екіпіровки.
-      </footer>
+      <SiteFooter />
     </>
   );
 }
