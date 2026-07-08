@@ -26,8 +26,8 @@ export default async function HomePage() {
           <span className="text-brand">завжди актуальна наявність</span>
         </h1>
         <p className="mt-3 max-w-xl text-sm text-ink-600 [color:#9fb3a6] sm:text-base">
-          Обирайте перевірені моделі Nike, Adidas, New Balance та інших брендів. Розміри в
-          наявності, розмірна сітка та ціни оновлюються автоматично.
+          Великий вибір футбольного взуття та екіпіровки — брендові моделі та бюджетні варіанти
+          без бренду. Розміри в наявності, розмірна сітка та ціни оновлюються автоматично.
         </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <span className="rounded-full bg-ink-800 px-3 py-1.5 text-ink-600 [color:#c3d3c8] ring-1 ring-ink-700">
@@ -37,7 +37,7 @@ export default async function HomePage() {
             {totalProducts} товарів
           </span>
           <span className="rounded-full bg-brand/15 px-3 py-1.5 font-medium text-brand ring-1 ring-brand/30">
-            Оригінальна продукція
+            Актуальна наявність
           </span>
         </div>
       </section>

@@ -60,9 +60,9 @@ export const SHEETS: SheetDef[] = [
   { title: 'ФУТЗАЛКИ', slug: 'futzalky', label: 'Футзалки', kind: 'footwear' },
   { title: 'ДИТЯЧЕ ВЗУТТЯ', slug: 'dytiache-vzuttia', label: 'Дитяче взуття', kind: 'footwear' },
   { title: 'ЕКІПІРУВАННЯ', slug: 'ekipiruvannia', label: 'Екіпірування', kind: 'gear' },
-  { title: 'НБ ВЗУТТЯ', slug: 'nb-vzuttia', label: 'NB взуття', kind: 'footwear' },
-  { title: 'НБ ДИТЯЧЕ ВЗУТТЯ', slug: 'nb-dytiache-vzuttia', label: 'NB дитяче взуття', kind: 'footwear' },
-  { title: 'НБ ЕКІПІРУВАННЯ', slug: 'nb-ekipiruvannia', label: 'NB екіпірування', kind: 'gear' },
+  { title: 'НБ ВЗУТТЯ', slug: 'nb-vzuttia', label: 'Взуття без бренду', kind: 'footwear' },
+  { title: 'НБ ДИТЯЧЕ ВЗУТТЯ', slug: 'nb-dytiache-vzuttia', label: 'Дитяче без бренду', kind: 'footwear' },
+  { title: 'НБ ЕКІПІРУВАННЯ', slug: 'nb-ekipiruvannia', label: 'Екіпірування без бренду', kind: 'gear' },
 ];
 
 export function sheetBySlug(slug: string): SheetDef | undefined {

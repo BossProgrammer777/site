@@ -5,6 +5,7 @@ import type { Section } from '@/lib/types';
 import { ProductCard } from './ProductCard';
 
 const OTHER = 'Інше';
+const NO_BRAND = 'Без бренду';
 
 // Приводим кириллические «двойники» латиницы к латинице (напр. «Аdidas» → «adidas»).
 const HOMOGLYPHS: Record<string, string> = {
@@ -15,6 +16,7 @@ function normalize(s: string): string {
 }
 
 // Бренд по названию/подкатегории (латиница + кириллица + распространённые алиасы).
+// ВАЖНО: разделы «НБ …» = No Brand (безбрендовые копии), а не New Balance.
 const BRAND_RULES: [RegExp, string][] = [
   [/new balance|нью ?баланс/i, 'New Balance'],
   [/nike|найк/i, 'Nike'],
@@ -33,12 +35,10 @@ const BRAND_RULES: [RegExp, string][] = [
   [/puma|пума/i, 'Puma'],
 ];
 function detectBrand(text: string, sectionSlug: string): string {
+  // Разделы «НБ …» = No Brand: безбрендовые копії, навіть якщо назва схожа на бренд.
+  if (sectionSlug.startsWith('nb-')) return NO_BRAND;
   const norm = normalize(text);
   for (const [re, name] of BRAND_RULES) if (re.test(text) || re.test(norm)) return name;
-  // Разделы «НБ …» — это New Balance.
-  if (sectionSlug.startsWith('nb-')) return 'New Balance';
-  // Отдельный кейс аббревиатуры NB как самостоятельного слова.
-  if (/\bnb\b/i.test(text)) return 'New Balance';
   return OTHER;
 }
 
