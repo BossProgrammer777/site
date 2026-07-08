@@ -82,7 +82,15 @@ type Dim = 'section' | 'brand' | 'model' | 'size' | 'country';
 
 const PAGE = 60;
 
-export function CatalogBrowser({ sections }: { sections: Section[] }) {
+export function CatalogBrowser({
+  sections,
+  initialSections = [],
+  initialBrands = [],
+}: {
+  sections: Section[];
+  initialSections?: string[];
+  initialBrands?: string[];
+}) {
   const items = useMemo<Item[]>(
     () =>
       sections.flatMap((s) =>
@@ -99,8 +107,8 @@ export function CatalogBrowser({ sections }: { sections: Section[] }) {
   );
 
   const [sel, setSel] = useState<Selection>({
-    sections: new Set(),
-    brands: new Set(),
+    sections: new Set(initialSections),
+    brands: new Set(initialBrands),
     models: new Set(),
     sizes: new Set(),
     countries: new Set(),
