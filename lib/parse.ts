@@ -92,6 +92,7 @@ interface ColumnMap {
   price: number;
   notes: number;
   material: number;
+  media: number;
   sizeGrid: number[];
   /** Посетевые размеры (обувь). */
   sizeCols: { index: number; label: string }[];
@@ -139,6 +140,7 @@ function detectColumns(grid: Cell[][]): ColumnMap {
   const country = find(COLUMN_KEYWORDS.country);
   const notes = find(COLUMN_KEYWORDS.notes);
   const material = find(COLUMN_KEYWORDS.material);
+  const media = find(COLUMN_KEYWORDS.media);
   const quantity = find(COLUMN_KEYWORDS.quantity);
   const sizeGridStart = find(COLUMN_KEYWORDS.sizeGrid);
   const sizesBlockStart = header.findIndex(
@@ -162,7 +164,7 @@ function detectColumns(grid: Cell[][]): ColumnMap {
   });
 
   // Границы для разворачивания объединённых блоков.
-  const anchors = [photo, code, name, country, price, notes, material, quantity, sizeGridStart, gearSize]
+  const anchors = [photo, code, name, country, price, notes, material, media, quantity, sizeGridStart, gearSize]
     .filter((i) => i >= 0)
     .sort((a, b) => a - b);
   const nextAnchorAfter = (start: number, hardStop: number): number => {
@@ -195,6 +197,7 @@ function detectColumns(grid: Cell[][]): ColumnMap {
     price: price >= 0 ? price : 11,
     notes,
     material,
+    media,
     sizeGrid,
     sizeCols,
     gearSize,
@@ -290,6 +293,12 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
 
     const anyInStock = sizes.length ? sizes.some((s) => s.inStock) : true;
 
+    // Ссылка на доп. фото/видео (гиперссылка в ячейке «Медіа»).
+    const mediaCell = cellAt(row, cols.media);
+    const mediaUrl = mediaCell.hyperlink && /^https?:\/\//.test(mediaCell.hyperlink)
+      ? mediaCell.hyperlink
+      : null;
+
     counter += 1;
     products.push({
       id: `${sheet.slug}-${codeCell.text || counter}`,
@@ -303,6 +312,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       notes,
       group: currentGroup,
       anyInStock,
+      mediaUrl,
       _row: r,
     });
   }

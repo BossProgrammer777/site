@@ -51,6 +51,7 @@ function makeProducts(sheet: SheetDef, seeds: Seed[]): Product[] {
       notes: idx % 4 === 0 ? 'Оригінал, у наявності' : null,
       group: s.group,
       anyInStock: sz.some((x) => x.inStock),
+      mediaUrl: null,
     };
   });
 }

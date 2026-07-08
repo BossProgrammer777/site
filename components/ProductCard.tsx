@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
 
@@ -40,7 +41,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-900/70 transition hover:border-brand/50 hover:shadow-glow">
-      <div className="relative aspect-[4/3] overflow-hidden bg-ink-800">
+      <Link href={`/product/${encodeURIComponent(product.id)}`} className="relative block aspect-[4/3] overflow-hidden bg-ink-800">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
@@ -54,13 +55,15 @@ export function ProductCard({ product }: { product: Product }) {
             {product.country}
           </span>
         )}
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div>
-          <h3 className="line-clamp-2 text-sm font-semibold leading-snug [color:#e7efe9]">
-            {product.name}
-          </h3>
+          <Link href={`/product/${encodeURIComponent(product.id)}`}>
+            <h3 className="line-clamp-2 text-sm font-semibold leading-snug [color:#e7efe9] transition hover:text-brand">
+              {product.name}
+            </h3>
+          </Link>
           {product.code && <p className="mt-1 text-xs [color:#7d8f83]">Код: {product.code}</p>}
         </div>
 
