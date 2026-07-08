@@ -46,10 +46,49 @@ function extInfo(name) {
   return ext === 'jpeg' ? 'jpg' : ext;
 }
 
+const UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+
+async function fetchXlsxOnce() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000); // 2 мин
+  try {
+    const res = await fetch(DOCS_EXPORT, {
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': UA,
+        Accept:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*',
+      },
+    });
+    const ctype = res.headers.get('content-type') || '';
+    console.log(`[extract-images] response: HTTP ${res.status}, type=${ctype}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    // .xlsx — это zip: первые байты "PK". Иначе Google вернул HTML-заглушку и т.п.
+    const isZip = buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b;
+    if (!isZip) {
+      throw new Error(`не .xlsx (size=${buf.length}, начало="${dec(buf.slice(0, 40))}")`);
+    }
+    return buf;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function download() {
-  const res = await fetch(DOCS_EXPORT);
-  if (!res.ok) throw new Error(`xlsx export HTTP ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
+  let lastErr;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await fetchXlsxOnce();
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[extract-images] попытка ${attempt}/3 не удалась: ${e.message}`);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 4000));
+    }
+  }
+  throw lastErr;
 }
 
 function buildAnchors(files) {
