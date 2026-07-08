@@ -15,14 +15,18 @@ export type ProductKind = 'footwear' | 'gear';
 // НАЦЕНКА И ОКРУГЛЕНИЕ  (меняется в одном месте)
 // ---------------------------------------------------------------------------
 
-/** Наценка в долях: 0.15 = +15 %, 0.30 = +30 %. */
+/**
+ * Наценка в долях: 0.15 = +15 %, 0.30 = +30 %.
+ * Значения можно переопределить переменными окружения (MARKUP_FOOTWEAR,
+ * MARKUP_GEAR) — например в настройках Vercel, не меняя код.
+ */
 export const MARKUP: Record<ProductKind, number> = {
-  footwear: 0.15, // обувь
-  gear: 0.3, // экипировка
+  footwear: Number(process.env.MARKUP_FOOTWEAR ?? 0.15), // обувь
+  gear: Number(process.env.MARKUP_GEAR ?? 0.3), // экипировка
 };
 
 /** Кратность округления финальной цены (грн). Цена округляется ВВЕРХ. */
-export const PRICE_ROUND_TO = 10;
+export const PRICE_ROUND_TO = Number(process.env.PRICE_ROUND_TO ?? 10);
 
 /**
  * Финальная цена покупателя: базовая (дроп) цена + наценка,
