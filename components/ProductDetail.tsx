@@ -1,14 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
 import { productImageSrc, PLACEHOLDER } from '@/lib/img';
 
+function folderId(url: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
 export function ProductDetail({ product }: { product: Product }) {
   const { add } = useCart();
-  const [imgSrc, setImgSrc] = useState(productImageSrc(product.image));
+  const baseImages = product.image ? [productImageSrc(product.image)] : [];
+  const [images, setImages] = useState<string[]>(baseImages.length ? baseImages : [PLACEHOLDER]);
+  const [mainIdx, setMainIdx] = useState(0);
+  const [mainBroken, setMainBroken] = useState(false);
+
+  // Подгружаем доп. фото из папки Google Drive (если Drive API доступен).
+  useEffect(() => {
+    const fid = folderId(product.mediaUrl);
+    if (!fid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/drive-photos?folder=${encodeURIComponent(fid)}`);
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data.images) || data.images.length === 0) return;
+        setImages((prev) => {
+          const merged = [...prev.filter((u) => u !== PLACEHOLDER), ...data.images];
+          return Array.from(new Set(merged));
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [product.mediaUrl]);
+
   const inStock = product.sizes.filter((s) => s.inStock);
   const [size, setSize] = useState<string | null>(inStock.length === 1 ? inStock[0].label : null);
   const [qty, setQty] = useState(1);
@@ -39,12 +72,35 @@ export function ProductDetail({ product }: { product: Product }) {
         <div className="overflow-hidden rounded-2xl border border-ink-800 bg-ink-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={imgSrc}
+            src={mainBroken ? PLACEHOLDER : images[mainIdx] || PLACEHOLDER}
             alt={product.name}
-            onError={() => setImgSrc(PLACEHOLDER)}
+            onError={() => setMainBroken(true)}
             className="aspect-square w-full object-cover"
           />
         </div>
+
+        {/* Миниатюры */}
+        {images.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {images.map((src, i) => (
+              <button
+                key={src}
+                onClick={() => {
+                  setMainIdx(i);
+                  setMainBroken(false);
+                }}
+                className={
+                  'h-16 w-16 overflow-hidden rounded-lg border-2 transition ' +
+                  (i === mainIdx ? 'border-brand' : 'border-ink-700 hover:border-brand/50')
+                }
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
         {product.mediaUrl && (
           <a
             href={product.mediaUrl}
