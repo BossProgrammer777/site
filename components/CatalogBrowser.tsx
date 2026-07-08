@@ -4,63 +4,282 @@ import { useMemo, useState } from 'react';
 import type { Section } from '@/lib/types';
 import { ProductCard } from './ProductCard';
 
+const OTHER = 'Інше';
+
+// Приводим кириллические «двойники» латиницы к латинице (напр. «Аdidas» → «adidas»).
+const HOMOGLYPHS: Record<string, string> = {
+  а: 'a', е: 'e', о: 'o', р: 'p', с: 'c', х: 'x', і: 'i', у: 'y', к: 'k', м: 'm', н: 'n', т: 't', в: 'b',
+};
+function normalize(s: string): string {
+  return s.toLowerCase().replace(/[аеорсхіукмнтв]/g, (ch) => HOMOGLYPHS[ch] || ch);
+}
+
+// Бренд по названию/подкатегории (латиница + кириллица + распространённые алиасы).
+const BRAND_RULES: [RegExp, string][] = [
+  [/new balance|нью ?баланс/i, 'New Balance'],
+  [/nike|найк/i, 'Nike'],
+  [/adidas|ад[іи]дас/i, 'Adidas'],
+  [/puma|пума/i, 'Puma'],
+  [/mizuno|м[іи]зуно/i, 'Mizuno'],
+  [/joma|джома/i, 'Joma'],
+  [/under armour|андер армор/i, 'Under Armour'],
+  [/umbro|умбро/i, 'Umbro'],
+  [/kelme|кельме/i, 'Kelme'],
+  [/diadora|діадора/i, 'Diadora'],
+  [/lotto|лотто/i, 'Lotto'],
+  [/asics|асікс/i, 'Asics'],
+  [/reebok|рібок/i, 'Reebok'],
+  [/nivia|нівіа/i, 'Nivia'],
+  [/puma|пума/i, 'Puma'],
+];
+function detectBrand(text: string, sectionSlug: string): string {
+  const norm = normalize(text);
+  for (const [re, name] of BRAND_RULES) if (re.test(text) || re.test(norm)) return name;
+  // Разделы «НБ …» — это New Balance.
+  if (sectionSlug.startsWith('nb-')) return 'New Balance';
+  // Отдельный кейс аббревиатуры NB как самостоятельного слова.
+  if (/\bnb\b/i.test(text)) return 'New Balance';
+  return OTHER;
+}
+
+// Чистим у модели ведущее слово-категорию, чтобы «Бутси Nike Mercurial» и
+// «Nike Mercurial» объединялись.
+const MODEL_PREFIX = /^(бутси|сороконіжки|футзалки|копочки|дитячі|дитяче|взуття)\s+/i;
+function cleanModel(group: string | null): string {
+  if (!group) return 'Інше';
+  const stripped = group.replace(MODEL_PREFIX, '').trim();
+  return stripped || group;
+}
+
+const sizeSort = (a: string, b: string) => {
+  const na = parseFloat(a);
+  const nb = parseFloat(b);
+  if (!isNaN(na) && !isNaN(nb)) return na - nb;
+  if (!isNaN(na)) return -1;
+  if (!isNaN(nb)) return 1;
+  return a.localeCompare(b, 'uk');
+};
+
+interface Item {
+  product: Section['products'][number];
+  sectionSlug: string;
+  sectionLabel: string;
+  brand: string;
+  model: string;
+  sizesInStock: Set<string>;
+}
+
+interface Selection {
+  sections: Set<string>;
+  brands: Set<string>;
+  models: Set<string>;
+  sizes: Set<string>;
+  countries: Set<string>;
+  query: string;
+  onlyInStock: boolean;
+}
+
+type Dim = 'section' | 'brand' | 'model' | 'size' | 'country';
+
+const PAGE = 60;
+
 export function CatalogBrowser({ sections }: { sections: Section[] }) {
-  const available = sections.filter((s) => s.products.length > 0);
-  const [activeSlug, setActiveSlug] = useState(available[0]?.slug ?? sections[0]?.slug);
-  const [query, setQuery] = useState('');
-  const [country, setCountry] = useState('');
-  const [onlyInStock, setOnlyInStock] = useState(false);
+  const items = useMemo<Item[]>(
+    () =>
+      sections.flatMap((s) =>
+        s.products.map((p) => ({
+          product: p,
+          sectionSlug: s.slug,
+          sectionLabel: s.label,
+          brand: detectBrand(`${p.group || ''} ${p.name}`, s.slug),
+          model: cleanModel(p.group),
+          sizesInStock: new Set(p.sizes.filter((x) => x.inStock).map((x) => x.label)),
+        })),
+      ),
+    [sections],
+  );
 
-  const section = sections.find((s) => s.slug === activeSlug) ?? sections[0];
+  const [sel, setSel] = useState<Selection>({
+    sections: new Set(),
+    brands: new Set(),
+    models: new Set(),
+    sizes: new Set(),
+    countries: new Set(),
+    query: '',
+    onlyInStock: false,
+  });
+  const [visible, setVisible] = useState(PAGE);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const filtered = useMemo(() => {
-    if (!section) return [];
-    const q = query.trim().toLowerCase();
-    return section.products.filter((p) => {
-      if (q && !p.name.toLowerCase().includes(q) && !p.code.toLowerCase().includes(q)) return false;
-      if (country && p.country !== country) return false;
-      if (onlyInStock && !p.anyInStock) return false;
-      return true;
+  const passes = (it: Item, exclude: Dim | null): boolean => {
+    if (exclude !== 'section' && sel.sections.size && !sel.sections.has(it.sectionSlug)) return false;
+    if (exclude !== 'brand' && sel.brands.size && !sel.brands.has(it.brand)) return false;
+    if (exclude !== 'model' && sel.models.size && !sel.models.has(it.model)) return false;
+    if (exclude !== 'size' && sel.sizes.size && ![...sel.sizes].some((s) => it.sizesInStock.has(s)))
+      return false;
+    if (exclude !== 'country' && sel.countries.size && !sel.countries.has(it.product.country))
+      return false;
+    if (sel.query) {
+      const q = sel.query.toLowerCase();
+      if (!it.product.name.toLowerCase().includes(q) && !it.product.code.toLowerCase().includes(q))
+        return false;
+    }
+    if (sel.onlyInStock && !it.product.anyInStock) return false;
+    return true;
+  };
+
+  const filtered = useMemo(() => items.filter((it) => passes(it, null)), [items, sel]);
+
+  // Опции фасета с учётом всех остальных выбранных фильтров.
+  const facet = (dim: Dim, valueOf: (it: Item) => string[]) => {
+    const base = items.filter((it) => passes(it, dim));
+    const counts = new Map<string, number>();
+    for (const it of base) for (const v of valueOf(it)) if (v) counts.set(v, (counts.get(v) || 0) + 1);
+    return counts;
+  };
+
+  const sectionFacet = useMemo(() => facet('section', (it) => [it.sectionLabel]), [items, sel]);
+  const brandFacet = useMemo(() => facet('brand', (it) => [it.brand]), [items, sel]);
+  const modelFacet = useMemo(() => facet('model', (it) => [it.model]), [items, sel]);
+  const sizeFacet = useMemo(() => facet('size', (it) => [...it.sizesInStock]), [items, sel]);
+  const countryFacet = useMemo(() => facet('country', (it) => [it.product.country]), [items, sel]);
+
+  // Соответствие label ↔ slug для секций.
+  const sectionSlugByLabel = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of sections) m.set(s.label, s.slug);
+    return m;
+  }, [sections]);
+
+  const toggle = (key: keyof Selection, value: string) => {
+    setSel((prev) => {
+      const next = new Set(prev[key] as Set<string>);
+      next.has(value) ? next.delete(value) : next.add(value);
+      return { ...prev, [key]: next };
     });
-  }, [section, query, country, onlyInStock]);
+    setVisible(PAGE);
+  };
 
-  // Группировка по подкатегории с сохранением порядка появления.
+  const activeCount =
+    sel.sections.size +
+    sel.brands.size +
+    sel.models.size +
+    sel.sizes.size +
+    sel.countries.size +
+    (sel.onlyInStock ? 1 : 0);
+
+  const reset = () =>
+    setSel({
+      sections: new Set(),
+      brands: new Set(),
+      models: new Set(),
+      sizes: new Set(),
+      countries: new Set(),
+      query: '',
+      onlyInStock: false,
+    });
+
+  // Группировка видимой части по модели.
   const groups = useMemo(() => {
-    const map = new Map<string, typeof filtered>();
-    for (const p of filtered) {
-      const key = p.group || 'Інше';
+    const slice = filtered.slice(0, visible);
+    const map = new Map<string, Item[]>();
+    for (const it of slice) {
+      const key = it.model;
       if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(p);
+      map.get(key)!.push(it);
     }
     return Array.from(map.entries());
-  }, [filtered]);
+  }, [filtered, visible]);
+
+  const sortedFacet = (m: Map<string, number>, sorter?: (a: string, b: string) => number) =>
+    Array.from(m.entries()).sort((a, b) =>
+      sorter ? sorter(a[0], b[0]) : b[1] - a[1] || a[0].localeCompare(b[0], 'uk'),
+    );
 
   return (
-    <div>
-      {/* Навигация по разделам */}
-      <nav className="sticky top-[57px] z-20 -mx-4 border-b border-ink-800 bg-ink-950/85 px-4 py-2 backdrop-blur">
-        <div className="no-scrollbar flex gap-2 overflow-x-auto">
-          {available.map((s) => (
-            <button
-              key={s.slug}
-              onClick={() => setActiveSlug(s.slug)}
-              className={
-                'whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition ' +
-                (s.slug === activeSlug
-                  ? 'bg-brand text-ink-950'
-                  : 'bg-ink-800 text-ink-600 [color:#c3d3c8] hover:bg-ink-700')
-              }
-            >
-              {s.label}
-              <span className="ml-1.5 text-xs opacity-60">{s.products.length}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+    <div className="lg:flex lg:gap-8">
+      {/* Кнопка фильтров (моб.) */}
+      <button
+        onClick={() => setShowFilters((v) => !v)}
+        className="mb-4 flex items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 text-sm font-semibold text-ink-600 [color:#e7efe9] lg:hidden"
+      >
+        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M3 5h14M6 10h8M9 15h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+        Фільтри{activeCount > 0 && <span className="text-brand">· {activeCount}</span>}
+      </button>
 
-      {/* Панель поиска и фильтров */}
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      {/* Сайдбар фильтров */}
+      <aside
+        className={
+          'shrink-0 lg:block lg:w-64 ' + (showFilters ? 'block' : 'hidden')
+        }
+      >
+        <div className="lg:sticky lg:top-[70px] space-y-5 rounded-2xl border border-ink-800 bg-ink-900/50 p-4 lg:max-h-[calc(100vh-90px)] lg:overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-ink-600 [color:#c3d3c8]">
+              Фільтри
+            </h2>
+            {activeCount > 0 && (
+              <button onClick={reset} className="text-xs text-brand hover:underline">
+                Скинути
+              </button>
+            )}
+          </div>
+
+          <FacetGroup
+            title="Вид товару"
+            options={sortedFacet(sectionFacet)}
+            isChecked={(label) => sel.sections.has(sectionSlugByLabel.get(label) || label)}
+            onToggle={(label) => toggle('sections', sectionSlugByLabel.get(label) || label)}
+          />
+          <FacetGroup
+            title="Бренд"
+            options={sortedFacet(brandFacet)}
+            isChecked={(v) => sel.brands.has(v)}
+            onToggle={(v) => toggle('brands', v)}
+          />
+          <FacetGroup
+            title="Модель"
+            options={sortedFacet(modelFacet)}
+            isChecked={(v) => sel.models.has(v)}
+            onToggle={(v) => toggle('models', v)}
+            scroll
+          />
+          <FacetGroup
+            title="Розмір"
+            options={sortedFacet(sizeFacet, sizeSort)}
+            isChecked={(v) => sel.sizes.has(v)}
+            onToggle={(v) => toggle('sizes', v)}
+            grid
+          />
+          {countryFacet.size > 0 && (
+            <FacetGroup
+              title="Країна"
+              options={sortedFacet(countryFacet)}
+              isChecked={(v) => sel.countries.has(v)}
+              onToggle={(v) => toggle('countries', v)}
+            />
+          )}
+
+          <label className="flex cursor-pointer items-center gap-2 border-t border-ink-800 pt-4 text-sm text-ink-600 [color:#c3d3c8]">
+            <input
+              type="checkbox"
+              checked={sel.onlyInStock}
+              onChange={(e) => {
+                setSel((p) => ({ ...p, onlyInStock: e.target.checked }));
+                setVisible(PAGE);
+              }}
+              className="h-4 w-4 accent-brand"
+            />
+            Лише в наявності
+          </label>
+        </div>
+      </aside>
+
+      {/* Результаты */}
+      <div className="min-w-0 flex-1">
+        <div className="relative mb-4">
           <svg
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-600 [color:#6b7d71]"
             viewBox="0 0 20 20"
@@ -74,66 +293,132 @@ export function CatalogBrowser({ sections }: { sections: Section[] }) {
           </svg>
           <input
             type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={sel.query}
+            onChange={(e) => {
+              setSel((p) => ({ ...p, query: e.target.value }));
+              setVisible(PAGE);
+            }}
             placeholder="Пошук за назвою або кодом…"
-            className="w-full rounded-xl border border-ink-700 bg-ink-900 py-2.5 pl-10 pr-3 text-sm text-ink-600 [color:#e7efe9] outline-none placeholder:text-ink-600 [color:#6b7d71] focus:border-brand/60 focus:ring-1 focus:ring-brand/40"
+            className="w-full rounded-xl border border-ink-700 bg-ink-900 py-2.5 pl-10 pr-3 text-sm text-ink-600 [color:#e7efe9] outline-none focus:border-brand/60 focus:ring-1 focus:ring-brand/40"
           />
         </div>
 
-        <select
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm text-ink-600 [color:#e7efe9] outline-none focus:border-brand/60"
-        >
-          <option value="">Усі країни</option>
-          {section?.countries.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+        <p className="mb-4 text-xs text-ink-600 [color:#7d8f83]">
+          Знайдено товарів: <span className="font-semibold text-brand">{filtered.length}</span>
+        </p>
 
-        <label className="flex cursor-pointer select-none items-center gap-2 rounded-xl border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm text-ink-600 [color:#c3d3c8]">
-          <input
-            type="checkbox"
-            checked={onlyInStock}
-            onChange={(e) => setOnlyInStock(e.target.checked)}
-            className="h-4 w-4 accent-brand"
-          />
-          Лише в наявності
-        </label>
+        {groups.length === 0 ? (
+          <div className="mt-16 text-center text-ink-600 [color:#7d8f83]">
+            За обраними фільтрами нічого не знайдено.
+          </div>
+        ) : (
+          <div className="space-y-10">
+            {groups.map(([group, list]) => (
+              <section key={group}>
+                <h3 className="mb-4 flex items-center gap-3 text-lg font-bold">
+                  <span className="h-5 w-1 rounded-full bg-brand" />
+                  {group}
+                  <span className="text-sm font-normal text-ink-600 [color:#7d8f83]">{list.length}</span>
+                </h3>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+                  {list.map((it) => (
+                    <ProductCard key={it.product.id} product={it.product} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+
+        {visible < filtered.length && (
+          <div className="mt-10 text-center">
+            <button
+              onClick={() => setVisible((v) => v + PAGE)}
+              className="rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
+            >
+              Показати ще ({filtered.length - visible})
+            </button>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
 
-      <p className="mt-3 text-xs text-ink-600 [color:#7d8f83]">
-        Знайдено товарів: <span className="font-semibold text-brand">{filtered.length}</span>
-      </p>
+// --- Группа фасета -----------------------------------------------------------
+function FacetGroup({
+  title,
+  options,
+  isChecked,
+  onToggle,
+  scroll,
+  grid,
+}: {
+  title: string;
+  options: [string, number][];
+  isChecked: (v: string) => boolean;
+  onToggle: (v: string) => void;
+  scroll?: boolean;
+  grid?: boolean;
+}) {
+  const [open, setOpen] = useState(true);
+  if (options.length === 0) return null;
 
-      {/* Товары, сгруппированные по подкатегориям */}
-      {groups.length === 0 ? (
-        <div className="mt-16 text-center text-ink-600 [color:#7d8f83]">
-          За вашим запитом нічого не знайдено.
-        </div>
-      ) : (
-        <div className="mt-6 space-y-10">
-          {groups.map(([group, items]) => (
-            <section key={group}>
-              <h2 className="mb-4 flex items-center gap-3 text-lg font-bold">
-                <span className="h-5 w-1 rounded-full bg-brand" />
-                {group}
-                <span className="text-sm font-normal text-ink-600 [color:#7d8f83]">
-                  {items.length}
-                </span>
-              </h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {items.map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+  return (
+    <div className="border-t border-ink-800 pt-4 first:border-0 first:pt-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="mb-2 flex w-full items-center justify-between text-sm font-semibold text-ink-600 [color:#e7efe9]"
+      >
+        {title}
+        <svg
+          className={'h-3.5 w-3.5 text-ink-600 [color:#7d8f83] transition ' + (open ? 'rotate-180' : '')}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+      {open &&
+        (grid ? (
+          <div className="flex flex-wrap gap-1.5">
+            {options.map(([value]) => (
+              <button
+                key={value}
+                onClick={() => onToggle(value)}
+                className={
+                  'min-w-[2.4rem] rounded-md px-2 py-1 text-xs font-semibold transition ' +
+                  (isChecked(value)
+                    ? 'bg-brand text-ink-950'
+                    : 'bg-ink-800 text-ink-600 [color:#c3d3c8] hover:bg-ink-700')
+                }
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <ul className={'space-y-1 ' + (scroll ? 'max-h-56 overflow-y-auto pr-1' : '')}>
+            {options.map(([value, count]) => (
+              <li key={value}>
+                <label className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm text-ink-600 [color:#c3d3c8] hover:bg-ink-800">
+                  <input
+                    type="checkbox"
+                    checked={isChecked(value)}
+                    onChange={() => onToggle(value)}
+                    className="h-4 w-4 shrink-0 accent-brand"
+                  />
+                  <span className="flex-1 truncate">{value}</span>
+                  <span className="text-xs text-ink-600 [color:#6b7d71]">{count}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        ))}
     </div>
   );
 }
