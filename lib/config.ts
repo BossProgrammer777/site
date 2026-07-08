@@ -16,26 +16,29 @@ export type ProductKind = 'footwear' | 'gear';
 // ---------------------------------------------------------------------------
 
 /**
- * Наценка в долях: 0.15 = +15 %, 0.30 = +30 %.
- * Значения можно переопределить переменными окружения (MARKUP_FOOTWEAR,
- * MARKUP_GEAR) — например в настройках Vercel, не меняя код.
+ * Наценка:
+ *  - Обувь (footwear) — ФИКСИРОВАННАЯ надбавка в грн (по умолчанию +500).
+ *  - Экипировка (gear) — ПРОЦЕНТ (по умолчанию +40 %).
+ * Значения можно переопределить переменными окружения, не меняя код.
  */
-export const MARKUP: Record<ProductKind, number> = {
-  footwear: Number(process.env.MARKUP_FOOTWEAR ?? 0.15), // обувь
-  gear: Number(process.env.MARKUP_GEAR ?? 0.3), // экипировка
-};
+export const FOOTWEAR_MARKUP_FIXED = Number(process.env.FOOTWEAR_MARKUP_FIXED ?? 500);
+export const GEAR_MARKUP_PERCENT = Number(process.env.GEAR_MARKUP_PERCENT ?? 0.4);
 
 /** Кратность округления финальной цены (грн). Цена округляется ВВЕРХ. */
 export const PRICE_ROUND_TO = Number(process.env.PRICE_ROUND_TO ?? 10);
 
 /**
- * Финальная цена покупателя: базовая (дроп) цена + наценка,
- * округлённая вверх до ближайшего кратного PRICE_ROUND_TO.
- * Пример: 1950 * 1.15 = 2242.5 → 2250.
+ * Финальная цена покупателя от базовой (дроп) цены, округлённая вверх до
+ * ближайшего кратного PRICE_ROUND_TO.
+ *  - Обувь:      base + 500 грн.
+ *  - Экипировка: base * 1.40.
  */
 export function computeFinalPrice(basePrice: number, kind: ProductKind): number {
   if (!basePrice || basePrice <= 0) return 0;
-  const withMarkup = basePrice * (1 + MARKUP[kind]);
+  const withMarkup =
+    kind === 'footwear'
+      ? basePrice + FOOTWEAR_MARKUP_FIXED
+      : basePrice * (1 + GEAR_MARKUP_PERCENT);
   return Math.ceil(withMarkup / PRICE_ROUND_TO) * PRICE_ROUND_TO;
 }
 

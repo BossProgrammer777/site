@@ -71,6 +71,13 @@ export function ProductDetail({ product }: { product: Product }) {
     setTimeout(() => setAdded(false), 1800);
   };
 
+  // Для интерактивной размерной сетки: наличие по размеру + EU-размер из строки.
+  const stockByLabel = new Map(product.sizes.map((s) => [s.label, s.inStock]));
+  const rowEu = (row: string): string | null => {
+    const m = row.match(/EU[\s.-]*?(\d{2})/i);
+    return m ? m[1] : null;
+  };
+
   return (
     <>
     <div className="grid gap-8 lg:grid-cols-2">
@@ -231,24 +238,61 @@ export function ProductDetail({ product }: { product: Product }) {
           <p className="mt-5 rounded-xl bg-ink-900/60 p-3 text-sm [color:#9fb3a6]">{product.notes}</p>
         )}
 
-        {/* Размерная сетка */}
+        {/* Размерная сетка (интерактивная) */}
         {product.sizeGrid.length > 0 && (
           <div className="mt-6">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">
+            <h2 className="mb-1 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">
               Розмірна сітка
             </h2>
+            <p className="mb-2 text-xs [color:#7d8f83]">
+              Натисніть на розмір вище або на рядок сітки — потрібний розмір виділиться.
+            </p>
             <div className="overflow-x-auto rounded-xl border border-ink-800">
               <table className="w-full text-left text-xs sm:text-sm">
                 <tbody>
-                  {product.sizeGrid.map((row, i) => (
-                    <tr key={i} className="border-b border-ink-800 last:border-0 odd:bg-ink-900/40">
-                      {row.split(/[|]/).map((cell, j) => (
-                        <td key={j} className="whitespace-nowrap px-3 py-1.5 [color:#c3d3c8]">
-                          {cell.trim()}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
+                  {product.sizeGrid.map((row, i) => {
+                    const eu = rowEu(row);
+                    const inStk = eu ? stockByLabel.get(eu) === true : false;
+                    const selectable = !!eu && inStk;
+                    const highlighted = !!eu && eu === size;
+                    const outOfStock = !!eu && stockByLabel.get(eu) === false;
+                    return (
+                      <tr
+                        key={i}
+                        onClick={() => selectable && setSize(eu!)}
+                        title={
+                          selectable
+                            ? `Обрати розмір ${eu}`
+                            : outOfStock
+                              ? `Розмір ${eu}: немає в наявності`
+                              : undefined
+                        }
+                        className={
+                          'border-b border-ink-800 last:border-0 transition ' +
+                          (highlighted
+                            ? 'bg-brand/20 '
+                            : 'odd:bg-ink-900/40 ') +
+                          (selectable
+                            ? 'cursor-pointer hover:bg-brand/10 '
+                            : outOfStock
+                              ? 'opacity-45 '
+                              : '')
+                        }
+                      >
+                        {row.split(/[|]/).map((cell, j) => (
+                          <td
+                            key={j}
+                            className={
+                              'whitespace-nowrap px-3 py-1.5 ' +
+                              (highlighted ? 'font-semibold text-brand' : '[color:#c3d3c8]')
+                            }
+                          >
+                            {cell.trim()}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
