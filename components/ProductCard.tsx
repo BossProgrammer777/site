@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
+import { FavoriteButton } from './favorites/FavoriteButton';
 
 const PLACEHOLDER = '/placeholder.svg';
 
@@ -55,6 +56,10 @@ export function ProductCard({ product }: { product: Product }) {
             {product.country}
           </span>
         )}
+        <FavoriteButton
+          id={product.id}
+          className="absolute left-2.5 top-2.5 h-8 w-8 bg-black/50 backdrop-blur ring-1 ring-white/10"
+        />
       </Link>
 
       <div className="flex flex-1 flex-col gap-3 p-4">

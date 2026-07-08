@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { CartProvider } from '@/components/cart/CartContext';
+import { FavoritesProvider } from '@/components/favorites/FavoritesContext';
 import { Analytics } from '@/components/Analytics';
 import { siteUrl, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 
@@ -37,7 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uk">
       <body className="min-h-screen antialiased">
-        <CartProvider>{children}</CartProvider>
+        <FavoritesProvider>
+          <CartProvider>{children}</CartProvider>
+        </FavoritesProvider>
         <Analytics />
       </body>
     </html>

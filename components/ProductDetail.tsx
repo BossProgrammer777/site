@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
+import { FavoriteButton } from './favorites/FavoriteButton';
 import { productImageSrc, PLACEHOLDER } from '@/lib/img';
 
 function folderId(url: string | null): string | null {
@@ -139,7 +140,13 @@ export function ProductDetail({ product }: { product: Product }) {
 
       {/* Информация */}
       <div>
-        <h1 className="text-2xl font-extrabold leading-tight sm:text-3xl">{product.name}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-extrabold leading-tight sm:text-3xl">{product.name}</h1>
+          <FavoriteButton
+            id={product.id}
+            className="mt-1 h-10 w-10 shrink-0 border border-ink-700 bg-ink-900"
+          />
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm [color:#7d8f83]">
           {product.code && <span>Код: {product.code}</span>}
           {product.country && <span>Країна: {product.country}</span>}

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
 import { CartButton } from './cart/CartButton';
+import { FavoritesLink } from './favorites/FavoritesLink';
 import { MobileMenu } from './MobileMenu';
 import { PHONES, INFO_LINKS } from '@/lib/contacts';
 
@@ -41,6 +42,7 @@ export function SiteHeader() {
             {PHONES[0].display}
           </a>
 
+          <FavoritesLink />
           <CartButton />
           <MobileMenu />
         </div>

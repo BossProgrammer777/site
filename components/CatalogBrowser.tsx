@@ -116,6 +116,7 @@ export function CatalogBrowser({
   });
   const [visible, setVisible] = useState(PAGE);
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name'>('default');
 
   const passes = (it: Item, exclude: Dim | null): boolean => {
     if (exclude !== 'section' && sel.sections.size && !sel.sections.has(it.sectionSlug)) return false;
@@ -133,7 +134,14 @@ export function CatalogBrowser({
     return true;
   };
 
-  const filtered = useMemo(() => items.filter((it) => passes(it, null)), [items, sel]);
+  const filtered = useMemo(() => {
+    const base = items.filter((it) => passes(it, null));
+    if (sortBy === 'price-asc') base.sort((a, b) => a.product.finalPrice - b.product.finalPrice);
+    else if (sortBy === 'price-desc') base.sort((a, b) => b.product.finalPrice - a.product.finalPrice);
+    else if (sortBy === 'name')
+      base.sort((a, b) => a.product.name.localeCompare(b.product.name, 'uk'));
+    return base;
+  }, [items, sel, sortBy]);
 
   // Опции фасета с учётом всех остальных выбранных фильтров.
   const facet = (dim: Dim, valueOf: (it: Item) => string[]) => {
@@ -178,9 +186,11 @@ export function CatalogBrowser({
       query: '',
     });
 
-  // Группировка видимой части по модели.
+  // Группировка видимой части. При активной сортировке — плоский список (одна
+  // группа без заголовка), иначе — по модели.
   const groups = useMemo(() => {
     const slice = filtered.slice(0, visible);
+    if (sortBy !== 'default') return [['', slice]] as [string, Item[]][];
     const map = new Map<string, Item[]>();
     for (const it of slice) {
       const key = it.model;
@@ -188,7 +198,7 @@ export function CatalogBrowser({
       map.get(key)!.push(it);
     }
     return Array.from(map.entries());
-  }, [filtered, visible]);
+  }, [filtered, visible, sortBy]);
 
   const sortedFacet = (m: Map<string, number>, sorter?: (a: string, b: string) => number) =>
     Array.from(m.entries()).sort((a, b) =>
@@ -265,28 +275,44 @@ export function CatalogBrowser({
 
       {/* Результаты */}
       <div className="min-w-0 flex-1">
-        <div className="relative mb-4">
-          <svg
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-600 [color:#6b7d71]"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.45 4.39l3.08 3.08a1 1 0 01-1.42 1.42l-3.08-3.08A7 7 0 012 9z"
-              clipRule="evenodd"
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-600 [color:#6b7d71]"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.45 4.39l3.08 3.08a1 1 0 01-1.42 1.42l-3.08-3.08A7 7 0 012 9z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <input
+              type="search"
+              value={sel.query}
+              onChange={(e) => {
+                setSel((p) => ({ ...p, query: e.target.value }));
+                setVisible(PAGE);
+              }}
+              placeholder="Пошук за назвою або кодом…"
+              className="w-full rounded-xl border border-ink-700 bg-ink-900 py-2.5 pl-10 pr-3 text-sm text-ink-600 [color:#e7efe9] outline-none focus:border-brand/60 focus:ring-1 focus:ring-brand/40"
             />
-          </svg>
-          <input
-            type="search"
-            value={sel.query}
+          </div>
+          <select
+            value={sortBy}
             onChange={(e) => {
-              setSel((p) => ({ ...p, query: e.target.value }));
+              setSortBy(e.target.value as typeof sortBy);
               setVisible(PAGE);
             }}
-            placeholder="Пошук за назвою або кодом…"
-            className="w-full rounded-xl border border-ink-700 bg-ink-900 py-2.5 pl-10 pr-3 text-sm text-ink-600 [color:#e7efe9] outline-none focus:border-brand/60 focus:ring-1 focus:ring-brand/40"
-          />
+            className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm [color:#e7efe9] outline-none focus:border-brand/60 sm:w-56"
+            aria-label="Сортування"
+          >
+            <option value="default">За замовчуванням</option>
+            <option value="price-asc">Спочатку дешевші</option>
+            <option value="price-desc">Спочатку дорожчі</option>
+            <option value="name">За назвою (А–Я)</option>
+          </select>
         </div>
 
         <p className="mb-4 text-xs text-ink-600 [color:#7d8f83]">
@@ -301,11 +327,13 @@ export function CatalogBrowser({
           <div className="space-y-10">
             {groups.map(([group, list]) => (
               <section key={group}>
-                <h3 className="mb-4 flex items-center gap-3 text-lg font-bold">
-                  <span className="h-5 w-1 rounded-full bg-brand" />
-                  {group}
-                  <span className="text-sm font-normal text-ink-600 [color:#7d8f83]">{list.length}</span>
-                </h3>
+                {group && (
+                  <h3 className="mb-4 flex items-center gap-3 text-lg font-bold">
+                    <span className="h-5 w-1 rounded-full bg-brand" />
+                    {group}
+                    <span className="text-sm font-normal text-ink-600 [color:#7d8f83]">{list.length}</span>
+                  </h3>
+                )}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
                   {list.map((it) => (
                     <ProductCard key={it.product.id} product={it.product} />
