@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listFolderImages } from '@/lib/drive';
+import { listFolderMedia } from '@/lib/drive';
 
 export const dynamic = 'force-dynamic';
 
-// Возвращает список URL картинок из публичной папки Google Drive для галереи
-// товара. Пусто, если Drive API недоступен/выключен.
+// Возвращает фото (для галереи) и ссылку на видео (для кнопки) из папки Drive.
+// Пусто, если Drive API недоступен/выключен.
 export async function GET(req: NextRequest) {
   const folder = req.nextUrl.searchParams.get('folder') || '';
-  if (!folder) return NextResponse.json({ images: [] });
-  const ids = await listFolderImages(folder);
-  // Проксируем через /api/img (сервер тянет с lh3-CDN Google и стримит) —
-  // так надёжнее, без hotlink/CORS-проблем на клиенте.
-  const images = ids.map(
+  if (!folder) return NextResponse.json({ images: [], video: null });
+
+  const { imageIds, videoIds } = await listFolderMedia(folder);
+  // Фото проксируем через /api/img (сервер тянет с lh3-CDN и стримит).
+  const images = imageIds.map(
     (id) => `/api/img?src=${encodeURIComponent(`https://lh3.googleusercontent.com/d/${id}=w1200`)}`,
   );
+  // Видео — прямая ссылка на просмотр в плеере Google Drive.
+  const video = videoIds[0] ? `https://drive.google.com/file/d/${videoIds[0]}/view` : null;
+
   return NextResponse.json(
-    { images },
+    { images, video },
     { headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400' } },
   );
 }

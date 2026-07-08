@@ -1,6 +1,6 @@
-// Список изображений в публичной папке Google Drive (для галереи товара).
-// Использует тот же GOOGLE_API_KEY. Требует включённого Drive API в проекте —
-// иначе вернёт пустой список (галерея просто не покажется).
+// Список медиа (фото + видео) в публичной папке Google Drive для товара.
+// Использует тот же GOOGLE_API_KEY. Требует включённого Drive API — иначе
+// возвращает пустые списки (галерея/видео просто не показываются).
 
 export function extractFolderId(url: string | null): string | null {
   if (!url) return null;
@@ -8,34 +8,42 @@ export function extractFolderId(url: string | null): string | null {
   return m ? m[1] : null;
 }
 
-const cache = new Map<string, { at: number; ids: string[] }>();
+export interface FolderMedia {
+  imageIds: string[];
+  videoIds: string[];
+}
+
+const cache = new Map<string, { at: number; media: FolderMedia }>();
 const TTL = 30 * 60 * 1000; // 30 мин
 
-export async function listFolderImages(folderId: string): Promise<string[]> {
+export async function listFolderMedia(folderId: string): Promise<FolderMedia> {
+  const empty: FolderMedia = { imageIds: [], videoIds: [] };
   const key = process.env.GOOGLE_API_KEY || process.env.GOOGLE_SHEETS_API_KEY;
-  if (!key || !folderId) return [];
+  if (!key || !folderId) return empty;
 
   const cached = cache.get(folderId);
-  if (cached && Date.now() - cached.at < TTL) return cached.ids;
+  if (cached && Date.now() - cached.at < TTL) return cached.media;
 
-  const q = encodeURIComponent(
-    `'${folderId}' in parents and mimeType contains 'image/' and trashed=false`,
-  );
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
   const url =
     `https://www.googleapis.com/drive/v3/files?q=${q}&key=${key}` +
-    `&fields=files(id,name)&orderBy=name&pageSize=30`;
+    `&fields=files(id,name,mimeType)&orderBy=name&pageSize=50`;
 
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
-      cache.set(folderId, { at: Date.now(), ids: [] });
-      return [];
+      cache.set(folderId, { at: Date.now(), media: empty });
+      return empty;
     }
     const data = await res.json();
-    const ids: string[] = (data.files || []).map((f: { id: string }) => f.id);
-    cache.set(folderId, { at: Date.now(), ids });
-    return ids;
+    const files: { id: string; mimeType: string }[] = data.files || [];
+    const media: FolderMedia = {
+      imageIds: files.filter((f) => f.mimeType?.startsWith('image/')).map((f) => f.id),
+      videoIds: files.filter((f) => f.mimeType?.startsWith('video/')).map((f) => f.id),
+    };
+    cache.set(folderId, { at: Date.now(), media });
+    return media;
   } catch {
-    return [];
+    return empty;
   }
 }

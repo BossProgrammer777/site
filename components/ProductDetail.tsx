@@ -18,8 +18,9 @@ export function ProductDetail({ product }: { product: Product }) {
   const [images, setImages] = useState<string[]>(baseImages.length ? baseImages : [PLACEHOLDER]);
   const [mainIdx, setMainIdx] = useState(0);
   const [mainBroken, setMainBroken] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
-  // Подгружаем доп. фото из папки Google Drive (если Drive API доступен).
+  // Подгружаем доп. фото и видео из папки Google Drive (если Drive API доступен).
   useEffect(() => {
     const fid = folderId(product.mediaUrl);
     if (!fid) return;
@@ -28,11 +29,14 @@ export function ProductDetail({ product }: { product: Product }) {
       try {
         const res = await fetch(`/api/drive-photos?folder=${encodeURIComponent(fid)}`);
         const data = await res.json();
-        if (cancelled || !Array.isArray(data.images) || data.images.length === 0) return;
-        setImages((prev) => {
-          const merged = [...prev.filter((u) => u !== PLACEHOLDER), ...data.images];
-          return Array.from(new Set(merged));
-        });
+        if (cancelled) return;
+        if (data.video) setVideoUrl(data.video);
+        if (Array.isArray(data.images) && data.images.length > 0) {
+          setImages((prev) => {
+            const merged = [...prev.filter((u) => u !== PLACEHOLDER), ...data.images];
+            return Array.from(new Set(merged));
+          });
+        }
       } catch {
         /* ignore */
       }
@@ -101,19 +105,30 @@ export function ProductDetail({ product }: { product: Product }) {
           </div>
         )}
 
-        {product.mediaUrl && (
+        {(videoUrl || product.mediaUrl) && (
           <a
-            href={product.mediaUrl}
+            href={videoUrl || product.mediaUrl || '#'}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-brand/40 bg-brand/10 px-4 py-3 text-sm font-semibold text-brand transition hover:bg-brand/20"
           >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <path d="M21 15l-5-5L5 21" />
-            </svg>
-            Більше фото та відео
+            {videoUrl ? (
+              <>
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                Дивитися відео
+              </>
+            ) : (
+              <>
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+                Більше фото та відео
+              </>
+            )}
           </a>
         )}
       </div>
