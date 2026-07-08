@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Section } from '@/lib/types';
 import { ProductCard } from './ProductCard';
 
@@ -51,6 +51,83 @@ function cleanModel(group: string | null): string {
   return stripped || group;
 }
 
+// ---------------------------------------------------------------------------
+// «Вид товару»: категории с группировкой по заголовкам.
+// Детское взуття внутри одного листа делится на Бутси/Сороконіжки/Футзалки
+// по группе/названию товара.
+// ---------------------------------------------------------------------------
+const H_ADULT = 'Доросле взуття (розміри 39–45)';
+const H_KIDS = 'Дитяче взуття (розміри 30–38)';
+
+export interface CatDef {
+  key: string;
+  label: string;
+  header: string;
+}
+const CATEGORY_DEFS: CatDef[] = [
+  { key: 'a-butsy', label: 'Бутси', header: H_ADULT },
+  { key: 'a-soro', label: 'Сороконіжки', header: H_ADULT },
+  { key: 'a-futz', label: 'Футзалки', header: H_ADULT },
+  { key: 'k-butsy', label: 'Бутси', header: H_KIDS },
+  { key: 'k-soro', label: 'Сороконіжки', header: H_KIDS },
+  { key: 'k-futz', label: 'Футзалки', header: H_KIDS },
+  { key: 'equip', label: 'Екіпірування', header: '' },
+  { key: 'nb-shoes', label: 'Взуття без бренду', header: '' },
+  { key: 'nb-kids', label: 'Дитяче взуття без бренду', header: '' },
+];
+
+function footwearType(text: string): 'soro' | 'futz' | 'butsy' {
+  const t = text.toLowerCase();
+  if (/сороконіж|сороконож/.test(t)) return 'soro';
+  if (/футзал/.test(t)) return 'futz';
+  return 'butsy';
+}
+
+function categoryKey(sectionSlug: string, group: string | null, name: string): string {
+  switch (sectionSlug) {
+    case 'butsy':
+      return 'a-butsy';
+    case 'sorokonizhky':
+      return 'a-soro';
+    case 'futzalky':
+      return 'a-futz';
+    case 'dytiache-vzuttia':
+      return 'k-' + footwearType(`${group || ''} ${name}`);
+    case 'ekipiruvannia':
+    case 'nb-ekipiruvannia':
+      return 'equip';
+    case 'nb-vzuttia':
+      return 'nb-shoes';
+    case 'nb-dytiache-vzuttia':
+      return 'nb-kids';
+    default:
+      return sectionSlug;
+  }
+}
+
+// Slug раздела (из ссылок главной) → ключи категорий для предвыбора.
+function slugToCatKeys(slug: string): string[] {
+  switch (slug) {
+    case 'butsy':
+      return ['a-butsy'];
+    case 'sorokonizhky':
+      return ['a-soro'];
+    case 'futzalky':
+      return ['a-futz'];
+    case 'dytiache-vzuttia':
+      return ['k-butsy', 'k-soro', 'k-futz'];
+    case 'ekipiruvannia':
+    case 'nb-ekipiruvannia':
+      return ['equip'];
+    case 'nb-vzuttia':
+      return ['nb-shoes'];
+    case 'nb-dytiache-vzuttia':
+      return ['nb-kids'];
+    default:
+      return [];
+  }
+}
+
 const sizeSort = (a: string, b: string) => {
   const na = parseFloat(a);
   const nb = parseFloat(b);
@@ -62,15 +139,14 @@ const sizeSort = (a: string, b: string) => {
 
 interface Item {
   product: Section['products'][number];
-  sectionSlug: string;
-  sectionLabel: string;
+  catKey: string;
   brand: string;
   model: string;
   sizesInStock: Set<string>;
 }
 
 interface Selection {
-  sections: Set<string>;
+  categories: Set<string>;
   brands: Set<string>;
   models: Set<string>;
   sizes: Set<string>;
@@ -80,7 +156,7 @@ interface Selection {
   priceTo: number;
 }
 
-type Dim = 'section' | 'brand' | 'model' | 'size' | 'country';
+type Dim = 'category' | 'brand' | 'model' | 'size' | 'country';
 
 const PAGE = 60;
 
@@ -98,8 +174,7 @@ export function CatalogBrowser({
       sections.flatMap((s) =>
         s.products.map((p) => ({
           product: p,
-          sectionSlug: s.slug,
-          sectionLabel: s.label,
+          catKey: categoryKey(s.slug, p.group, p.name),
           brand: detectBrand(`${p.group || ''} ${p.name}`, s.slug),
           model: cleanModel(p.group),
           sizesInStock: new Set(p.sizes.filter((x) => x.inStock).map((x) => x.label)),
@@ -122,7 +197,7 @@ export function CatalogBrowser({
   }, [items]);
 
   const [sel, setSel] = useState<Selection>({
-    sections: new Set(initialSections),
+    categories: new Set(initialSections.flatMap(slugToCatKeys)),
     brands: new Set(initialBrands),
     models: new Set(),
     sizes: new Set(),
@@ -136,7 +211,7 @@ export function CatalogBrowser({
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name'>('default');
 
   const passes = (it: Item, exclude: Dim | null): boolean => {
-    if (exclude !== 'section' && sel.sections.size && !sel.sections.has(it.sectionSlug)) return false;
+    if (exclude !== 'category' && sel.categories.size && !sel.categories.has(it.catKey)) return false;
     if (exclude !== 'brand' && sel.brands.size && !sel.brands.has(it.brand)) return false;
     if (exclude !== 'model' && sel.models.size && !sel.models.has(it.model)) return false;
     if (exclude !== 'size' && sel.sizes.size && ![...sel.sizes].some((s) => it.sizesInStock.has(s)))
@@ -169,18 +244,11 @@ export function CatalogBrowser({
     return counts;
   };
 
-  const sectionFacet = useMemo(() => facet('section', (it) => [it.sectionLabel]), [items, sel]);
+  const categoryFacet = useMemo(() => facet('category', (it) => [it.catKey]), [items, sel]);
   const brandFacet = useMemo(() => facet('brand', (it) => [it.brand]), [items, sel]);
   const modelFacet = useMemo(() => facet('model', (it) => [it.model]), [items, sel]);
   const sizeFacet = useMemo(() => facet('size', (it) => [...it.sizesInStock]), [items, sel]);
   const countryFacet = useMemo(() => facet('country', (it) => [it.product.country]), [items, sel]);
-
-  // Соответствие label ↔ slug для секций.
-  const sectionSlugByLabel = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const s of sections) m.set(s.label, s.slug);
-    return m;
-  }, [sections]);
 
   const toggle = (key: keyof Selection, value: string) => {
     setSel((prev) => {
@@ -193,7 +261,7 @@ export function CatalogBrowser({
 
   const priceActive = sel.priceFrom > priceBounds.min || sel.priceTo < priceBounds.max;
   const activeCount =
-    sel.sections.size +
+    sel.categories.size +
     sel.brands.size +
     sel.models.size +
     sel.sizes.size +
@@ -202,7 +270,7 @@ export function CatalogBrowser({
 
   const reset = () =>
     setSel({
-      sections: new Set(),
+      categories: new Set(),
       brands: new Set(),
       models: new Set(),
       sizes: new Set(),
@@ -267,11 +335,10 @@ export function CatalogBrowser({
             )}
           </div>
 
-          <FacetGroup
-            title="Вид товару"
-            options={sortedFacet(sectionFacet)}
-            isChecked={(label) => sel.sections.has(sectionSlugByLabel.get(label) || label)}
-            onToggle={(label) => toggle('sections', sectionSlugByLabel.get(label) || label)}
+          <CategoryFacet
+            counts={categoryFacet}
+            isChecked={(key) => sel.categories.has(key)}
+            onToggle={(key) => toggle('categories', key)}
           />
           <FacetGroup
             title="Бренд"
@@ -399,6 +466,83 @@ export function CatalogBrowser({
   );
 }
 
+// --- «Вид товару» с группировкой по заголовкам -------------------------------
+function CategoryFacet({
+  counts,
+  isChecked,
+  onToggle,
+}: {
+  counts: Map<string, number>;
+  isChecked: (key: string) => boolean;
+  onToggle: (key: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const visible = CATEGORY_DEFS.filter((d) => (counts.get(d.key) || 0) > 0 || isChecked(d.key));
+  if (visible.length === 0) return null;
+
+  const blocks: { header: string; items: CatDef[] }[] = [];
+  let last: string | null = null;
+  for (const d of visible) {
+    if (d.header !== last) {
+      blocks.push({ header: d.header, items: [] });
+      last = d.header;
+    }
+    blocks[blocks.length - 1].items.push(d);
+  }
+
+  return (
+    <div className="border-t border-ink-800 pt-4 first:border-0 first:pt-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="mb-2 flex w-full items-center justify-between text-sm font-semibold [color:#e7efe9]"
+      >
+        Вид товару
+        <svg
+          className={'h-3.5 w-3.5 [color:#7d8f83] transition ' + (open ? 'rotate-180' : '')}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        </svg>
+      </button>
+      {open && (
+        <div className="space-y-3">
+          {blocks.map((b, i) => (
+            <div key={i}>
+              {b.header && (
+                <p className="mb-1 mt-1 text-xs font-semibold uppercase tracking-wide text-brand/80">
+                  {b.header}
+                </p>
+              )}
+              <ul className="space-y-1">
+                {b.items.map((d) => (
+                  <li key={d.key}>
+                    <label
+                      className={
+                        'flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm [color:#c3d3c8] hover:bg-ink-800 ' +
+                        (b.header ? 'pl-2' : '')
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked(d.key)}
+                        onChange={() => onToggle(d.key)}
+                        className="h-4 w-4 shrink-0 accent-brand"
+                      />
+                      <span className="flex-1 truncate">{d.label}</span>
+                      <span className="text-xs [color:#6b7d71]">{counts.get(d.key) || 0}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Фильтр цены (от/до + двойной ползунок) ----------------------------------
 function PriceRange({
   min,
@@ -419,27 +563,37 @@ function PriceRange({
   const inputCls =
     'w-full rounded-lg border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm [color:#e7efe9] outline-none focus:border-brand/60';
 
+  // Локальный текст полей: даём свободно печатать, применяем по blur/Enter.
+  const [fromText, setFromText] = useState(String(from));
+  const [toText, setToText] = useState(String(to));
+  useEffect(() => setFromText(String(from)), [from]);
+  useEffect(() => setToText(String(to)), [to]);
+  const commitFrom = () => setFrom(parseInt(fromText, 10) || min);
+  const commitTo = () => setTo(parseInt(toText, 10) || max);
+
   return (
     <div className="border-t border-ink-800 pt-4">
       <h3 className="mb-3 text-sm font-semibold [color:#e7efe9]">Ціна, грн</h3>
       <div className="mb-3 flex items-center gap-2">
         <input
           type="number"
-          value={from}
-          min={min}
-          max={to}
+          inputMode="numeric"
+          value={fromText}
           aria-label="Ціна від"
-          onChange={(e) => setFrom(Number(e.target.value) || min)}
+          onChange={(e) => setFromText(e.target.value)}
+          onBlur={commitFrom}
+          onKeyDown={(e) => e.key === 'Enter' && commitFrom()}
           className={inputCls}
         />
         <span className="[color:#7d8f83]">—</span>
         <input
           type="number"
-          value={to}
-          min={from}
-          max={max}
+          inputMode="numeric"
+          value={toText}
           aria-label="Ціна до"
-          onChange={(e) => setTo(Number(e.target.value) || max)}
+          onChange={(e) => setToText(e.target.value)}
+          onBlur={commitTo}
+          onKeyDown={(e) => e.key === 'Enter' && commitTo()}
           className={inputCls}
         />
       </div>
