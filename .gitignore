@@ -27,3 +27,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# Сгенерированные при сборке фото (кладутся в билд, не в git)
+/public/photos/*/

@@ -1,17 +1,21 @@
 // ---------------------------------------------------------------------------
 // Чтение данных из Google Sheets API v4 и сборка публичного каталога.
 // Стратегия получения фото:
-//   1) =IMAGE("url") в ячейке  → URL берём напрямую (userEnteredValue.formulaValue).
-//   2) вставленные объекты      → экспорт .xlsx через Drive API и извлечение
-//                                 картинок из /xl/media (см. lib/xlsxImages.ts).
-//   3) fallback                 → null → на фронте показываем плейсхолдер.
+//   1) =IMAGE("url") в ячейке → URL берём напрямую (userEnteredValue.formulaValue).
+//   2) вставленные объекты     → фото извлекаются при СБОРКЕ скриптом
+//      scripts/extract-images.mjs в public/photos/<slug>/<row>.<ext>, а здесь
+//      подставляются по манифесту как статические ссылки.
+//   3) fallback                → null → на фронте показываем плейсхолдер.
 // ---------------------------------------------------------------------------
 
-import { SPREADSHEET_ID, SHEETS, SheetDef, sheetBySlug } from './config';
+import { SPREADSHEET_ID, SHEETS, SheetDef } from './config';
 import { getApiKey, getAccessToken } from './googleAuth';
 import { normalizeGrid, parseSheet, Cell } from './parse';
 import { Catalog, Product, Section } from './types';
-import { getImageIndexRows } from './xlsxImages';
+import manifestJson from '../public/photos/manifest.json';
+
+// Манифест фото, сгенерированный при сборке: slug → (номер строки → имя файла).
+const photoManifest = manifestJson as Record<string, Record<string, string>>;
 
 interface RawSheetResponse {
   sheets?: {
@@ -69,18 +73,18 @@ function buildSection(sheet: SheetDef, products: Product[]): Section {
 export async function fetchLiveCatalog(): Promise<Catalog> {
   const grids = await fetchGrids();
 
-  // Есть ли листы, где фото не пришли формулами? Тогда пробуем xlsx-фолбэк.
   const parsed = SHEETS.map((sheet) => {
     const grid = grids.get(sheet.title) ?? [];
     return { sheet, products: parseSheet(sheet, grid) };
   });
 
-  // Для товаров без формулы =IMAGE ставим ссылку на ленивую отдачу фото из .xlsx
-  // (реальные байты извлекаются по запросу в /api/photo). Затем чистим _row.
+  // Подставляем фото из манифеста (сгенерирован при сборке). Затем чистим _row.
   for (const { sheet, products } of parsed) {
+    const sheetPhotos = photoManifest[sheet.slug];
     for (const p of products) {
-      if (!p.image && p._row !== undefined) {
-        p.image = `/api/photo?s=${sheet.slug}&r=${p._row}`;
+      if (!p.image && p._row !== undefined && sheetPhotos) {
+        const file = sheetPhotos[String(p._row)];
+        if (file) p.image = `/photos/${sheet.slug}/${file}`;
       }
       delete p._row;
     }
@@ -88,30 +92,4 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
 
   const sections = parsed.map(({ sheet, products }) => buildSection(sheet, products));
   return { sections, fetchedAt: Date.now(), source: 'live' };
-}
-
-// --- Диагностика сопоставления фото со строками (для /api/photo-debug) --------
-export async function debugSheetImages(slug: string) {
-  const sheet = sheetBySlug(slug);
-  if (!sheet) return { error: `Раздел "${slug}" не найден` };
-  const grids = await fetchGrids();
-  const products = parseSheet(sheet, grids.get(sheet.title) ?? []);
-  const imageRows = await getImageIndexRows(sheet.title);
-  const imgSet = new Set(imageRows);
-  const missing = products
-    .filter((p) => p._row === undefined || !imgSet.has(p._row))
-    .map((p) => ({ row: p._row, code: p.code, name: p.name }));
-  return {
-    sheet: sheet.title,
-    productCount: products.length,
-    imageCount: imageRows.length,
-    matched: products.length - missing.length,
-    productRows: products.slice(0, 20).map((p) => ({
-      row: p._row,
-      code: p.code,
-      hasImage: p._row !== undefined && imgSet.has(p._row),
-    })),
-    imageRowsFirst20: imageRows.slice(0, 20),
-    missingFirst20: missing.slice(0, 20),
-  };
 }
