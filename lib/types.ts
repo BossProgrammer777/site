@@ -27,6 +27,8 @@ export interface Product {
   group: string | null;
   /** Есть ли хоть один размер в наличии. */
   anyInStock: boolean;
+  /** Внутреннее: индекс исходной строки листа (для сопоставления фото). Не для UI. */
+  _row?: number;
 }
 
 export interface Section {

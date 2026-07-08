@@ -82,17 +82,20 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
       for (const { sheet, products } of parsed) {
         const map = imagesBySheet.get(sheet.title);
         if (!map) continue;
-        // Сопоставляем по коду товара, если извлечён; иначе по порядку.
+        // Сопоставляем по абсолютной строке листа; запасной вариант — по порядку.
         products.forEach((product, idx) => {
           if (product.image) return;
-          const byCode = product.code ? map.byCode.get(product.code) : undefined;
-          product.image = byCode ?? map.byRowOrder[idx] ?? null;
+          const byRow = product._row !== undefined ? map.byRow.get(product._row) : undefined;
+          product.image = byRow ?? map.byRowOrder[idx] ?? null;
         });
       }
     } catch (err) {
       console.warn('[bootsbaza] xlsx image fallback failed:', (err as Error).message);
     }
   }
+
+  // Убираем внутреннее поле _row перед отдачей наружу.
+  for (const { products } of parsed) for (const p of products) delete p._row;
 
   const sections = parsed.map(({ sheet, products }) => buildSection(sheet, products));
   return { sections, fetchedAt: Date.now(), source: 'live' };

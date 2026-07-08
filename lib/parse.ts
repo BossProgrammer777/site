@@ -1,7 +1,13 @@
 // ---------------------------------------------------------------------------
 // Парсинг одного листа Google Sheets (grid data из Sheets API v4) в товары.
-// Роли колонок определяются по строке заголовков, с запасным вариантом на
-// фиксированные индексы A..P, описанные в ТЗ.
+// Поддерживаются две реальные раскладки:
+//   • Обувь        — A Фото | B Код | C Назва | D Країна | E..K розміри 39-45
+//                    (объединённый заголовок + номера в строке ниже) | L Ціна Дроп
+//                    | M Медіа | N-O Розмірна сітка | P Примітки | Q Ціна розпродаж (игнор).
+//   • Экіпіровка   — A Фото | B Код | C Назва | D Розмір | E Кількість | F Ціна Дроп
+//                    | G Фото товара | H Склад | I Примітки.
+// Роли колонок определяются по заголовку (по ключевым словам), объединённые
+// ячейки-блоки разворачиваются до следующего именованного столбца.
 // ---------------------------------------------------------------------------
 
 import { COLUMN_KEYWORDS, SheetDef, computeFinalPrice } from './config';
@@ -84,10 +90,15 @@ interface ColumnMap {
   name: number;
   country: number;
   price: number;
-  media: number;
   notes: number;
+  material: number;
   sizeGrid: number[];
+  /** Посетевые размеры (обувь). */
   sizeCols: { index: number; label: string }[];
+  /** Одиночная колонка размера (экипировка) либо -1. */
+  gearSize: number;
+  /** Колонка количества (экипировка) либо -1. */
+  quantity: number;
   headerRowIndex: number;
 }
 
@@ -96,29 +107,16 @@ function matchesAny(text: string, keywords: string[]): boolean {
   return keywords.some((k) => t.includes(k));
 }
 
-/** Индексная раскладка из ТЗ (A=0 … P=15) — запасной вариант. */
-const FALLBACK: Omit<ColumnMap, 'headerRowIndex'> = {
-  photo: 0,
-  code: 1,
-  name: 2,
-  country: 3,
-  price: 11,
-  media: 12,
-  notes: 15,
-  sizeGrid: [13, 14],
-  sizeCols: [
-    { index: 4, label: '39' },
-    { index: 5, label: '40' },
-    { index: 6, label: '41' },
-    { index: 7, label: '42' },
-    { index: 8, label: '43' },
-    { index: 9, label: '44' },
-    { index: 10, label: '45' },
-  ],
-};
+/** Очистка подписи размера: "39 размер" → "39", "40 розмір" → "40". */
+function cleanSizeLabel(raw: string): string {
+  return raw
+    .replace(/размер\w*/gi, '')
+    .replace(/розмір\w*/gi, '')
+    .trim();
+}
 
 function detectColumns(grid: Cell[][]): ColumnMap {
-  // Ищем строку заголовков среди первых 8 строк: должна содержать «код» и «назва».
+  // Строка заголовков — первая (в пределах 8) со словами «код» и «назва».
   let headerRowIndex = -1;
   for (let i = 0; i < Math.min(grid.length, 8); i++) {
     const row = grid[i];
@@ -129,49 +127,78 @@ function detectColumns(grid: Cell[][]): ColumnMap {
       break;
     }
   }
+  if (headerRowIndex === -1) headerRowIndex = 2;
 
-  if (headerRowIndex === -1) {
-    // Не нашли заголовок — используем фиксированную раскладку и считаем,
-    // что данные начинаются с 5-й строки (индекс 4).
-    return { ...FALLBACK, headerRowIndex: 3 };
-  }
-
-  const header = grid[headerRowIndex];
-  const find = (kw: string[]): number => header.findIndex((c) => matchesAny(c.text, kw));
+  const header = grid[headerRowIndex] || [];
+  const sub = grid[headerRowIndex + 1] || [];
+  const find = (kw: string[]) => header.findIndex((c) => matchesAny(c.text, kw));
 
   const photo = find(COLUMN_KEYWORDS.photo);
   const code = find(COLUMN_KEYWORDS.code);
   const name = find(COLUMN_KEYWORDS.name);
   const country = find(COLUMN_KEYWORDS.country);
-  const price = find(COLUMN_KEYWORDS.price);
-  const media = find(COLUMN_KEYWORDS.media);
   const notes = find(COLUMN_KEYWORDS.notes);
+  const material = find(COLUMN_KEYWORDS.material);
+  const quantity = find(COLUMN_KEYWORDS.quantity);
+  const sizeGridStart = find(COLUMN_KEYWORDS.sizeGrid);
+  const sizesBlockStart = header.findIndex(
+    (c) => matchesAny(c.text, COLUMN_KEYWORDS.sizesBlock), // «Розміри …»
+  );
 
-  const sizeGrid: number[] = [];
-  header.forEach((c, idx) => {
-    if (matchesAny(c.text, COLUMN_KEYWORDS.sizeGrid)) sizeGrid.push(idx);
+  // Цена: сначала «дроп», иначе «ціна» без «розпродаж».
+  let price = header.findIndex((c) => matchesAny(c.text, COLUMN_KEYWORDS.priceDrop));
+  if (price === -1) {
+    price = header.findIndex(
+      (c) =>
+        matchesAny(c.text, COLUMN_KEYWORDS.priceAny) &&
+        !matchesAny(c.text, COLUMN_KEYWORDS.priceExclude),
+    );
+  }
+
+  // Одиночная колонка размера (экипировка): «Розмір», но не «Розміри»/«Розмірна».
+  const gearSize = header.findIndex((c) => {
+    const t = c.text.toLowerCase();
+    return matchesAny(c.text, COLUMN_KEYWORDS.sizeSingle) && !t.includes('розміри') && !t.includes('розмірна');
   });
 
-  // Размерные колонки — всё, что между «країна» и «ціна» с непустым заголовком.
+  // Границы для разворачивания объединённых блоков.
+  const anchors = [photo, code, name, country, price, notes, material, quantity, sizeGridStart, gearSize]
+    .filter((i) => i >= 0)
+    .sort((a, b) => a - b);
+  const nextAnchorAfter = (start: number, hardStop: number): number => {
+    const found = anchors.find((a) => a > start);
+    return Math.min(found ?? hardStop, hardStop);
+  };
+  const maxCol = header.length;
+
+  // Посетевые размеры (обувь): от блока «Розміри» до цены, подписи из строки ниже.
   const sizeCols: { index: number; label: string }[] = [];
-  if (country >= 0 && price > country) {
-    for (let idx = country + 1; idx < price; idx++) {
-      const label = header[idx]?.text?.trim();
+  if (sizesBlockStart >= 0 && price > sizesBlockStart) {
+    for (let idx = sizesBlockStart; idx < price; idx++) {
+      const label = cleanSizeLabel(sub[idx]?.text || header[idx]?.text || '');
       if (label) sizeCols.push({ index: idx, label });
     }
   }
 
-  // Если что-то ключевое не нашли — подстрахуемся фиксированной раскладкой.
+  // Размерная сітка (обувь): блок от заголовка до следующего именованного столбца.
+  const sizeGrid: number[] = [];
+  if (sizeGridStart >= 0) {
+    const stop = nextAnchorAfter(sizeGridStart, maxCol);
+    for (let idx = sizeGridStart; idx < stop; idx++) sizeGrid.push(idx);
+  }
+
   return {
-    photo: photo >= 0 ? photo : FALLBACK.photo,
-    code: code >= 0 ? code : FALLBACK.code,
-    name: name >= 0 ? name : FALLBACK.name,
-    country: country >= 0 ? country : FALLBACK.country,
-    price: price >= 0 ? price : FALLBACK.price,
-    media: media >= 0 ? media : FALLBACK.media,
-    notes: notes >= 0 ? notes : FALLBACK.notes,
-    sizeGrid: sizeGrid.length ? sizeGrid : FALLBACK.sizeGrid,
-    sizeCols: sizeCols.length ? sizeCols : FALLBACK.sizeCols,
+    photo: photo >= 0 ? photo : 0,
+    code: code >= 0 ? code : 1,
+    name: name >= 0 ? name : 2,
+    country,
+    price: price >= 0 ? price : 11,
+    notes,
+    material,
+    sizeGrid,
+    sizeCols,
+    gearSize,
+    quantity,
     headerRowIndex,
   };
 }
@@ -183,7 +210,7 @@ function detectColumns(grid: Cell[][]): ColumnMap {
 /** Достаёт число из строки цены "1 950 грн." → 1950 (учитывает пробелы/nbsp). */
 export function parsePrice(cell: Cell): number {
   if (cell.num !== null && cell.num > 0) return cell.num;
-  const digits = cell.text.replace(/[^\d.,]/g, '').replace(/\s| /g, '').replace(',', '.');
+  const digits = cell.text.replace(/[^\d.,]/g, '').replace(/\s| /g, '').replace(',', '.');
   const n = parseFloat(digits);
   return Number.isFinite(n) ? n : 0;
 }
@@ -195,6 +222,7 @@ function parseQty(cell: Cell): number {
 }
 
 function cellAt(row: Cell[], idx: number): Cell {
+  if (idx < 0) return { text: '', imageUrl: null, num: null, hyperlink: null };
   return row[idx] ?? { text: '', imageUrl: null, num: null, hyperlink: null };
 }
 
@@ -230,21 +258,37 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       continue;
     }
 
-    // Товар: должен иметь хотя бы название и цену (или код).
     if (!hasName && !hasCode) continue;
     if (basePrice <= 0) continue;
 
-    const sizes: SizeAvailability[] = cols.sizeCols.map(({ index, label }) => {
-      const qty = parseQty(cellAt(row, index));
-      return { label, qty, inStock: qty > 0 };
-    });
+    // Размеры: посетевые (обувь) или одиночный размер + количество (экипировка).
+    let sizes: SizeAvailability[];
+    if (cols.sizeCols.length) {
+      sizes = cols.sizeCols.map(({ index, label }) => {
+        const qty = parseQty(cellAt(row, index));
+        return { label, qty, inStock: qty > 0 };
+      });
+    } else if (cols.gearSize >= 0) {
+      const label = cellAt(row, cols.gearSize).text || 'Розмір';
+      const qty = cols.quantity >= 0 ? parseQty(cellAt(row, cols.quantity)) : 1;
+      sizes = [{ label, qty, inStock: qty > 0 }];
+    } else {
+      sizes = [];
+    }
 
+    // Размерная сетка: собираем текст из колонок и разбиваем по строкам.
     const sizeGrid = cols.sizeGrid
-      .map((idx) => cellAt(row, idx).text)
-      .filter((t) => !!t);
+      .flatMap((idx) => cellAt(row, idx).text.split('\n'))
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-    const notes = cellAt(row, cols.notes).text || null;
-    const image = photoCell.imageUrl || null;
+    // Примечания + состав (экипировка).
+    const noteParts = [cellAt(row, cols.notes).text, cellAt(row, cols.material).text]
+      .map((s) => s.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    const notes = noteParts.length ? noteParts.join(' • ') : null;
+
+    const anyInStock = sizes.length ? sizes.some((s) => s.inStock) : true;
 
     counter += 1;
     products.push({
@@ -253,12 +297,13 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       name: nameCell.text || `Модель ${codeCell.text}`,
       country: cellAt(row, cols.country).text,
       finalPrice: computeFinalPrice(basePrice, sheet.kind),
-      image,
+      image: photoCell.imageUrl || null,
       sizes,
       sizeGrid,
       notes,
       group: currentGroup,
-      anyInStock: sizes.some((s) => s.inStock),
+      anyInStock,
+      _row: r,
     });
   }
 

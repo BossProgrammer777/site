@@ -12,9 +12,9 @@ import { SPREADSHEET_ID, SheetDef } from './config';
 import { getAccessToken } from './googleAuth';
 
 export interface SheetImageMap {
-  /** Фото по коду товара (если удалось сопоставить). */
-  byCode: Map<string, string>;
-  /** Фото в порядке сверху вниз (индекс → data URL). */
+  /** Фото по абсолютному номеру строки листа (0-based) — точное сопоставление. */
+  byRow: Map<number, string>;
+  /** Фото в порядке сверху вниз (индекс → data URL) — запасное сопоставление. */
   byRowOrder: string[];
 }
 
@@ -130,14 +130,17 @@ export async function extractEmbeddedImages(
     }
     anchors.sort((x, y) => x.row - y.row);
 
+    const byRow = new Map<number, string>();
     const byRowOrder: string[] = [];
     for (const anchor of anchors) {
       const mediaPath = embedToMedia.get(anchor.embed);
       if (!mediaPath || !files[mediaPath]) continue;
-      byRowOrder.push(toDataUrl(files[mediaPath], mediaPath));
+      const url = toDataUrl(files[mediaPath], mediaPath);
+      byRow.set(anchor.row, url);
+      byRowOrder.push(url);
     }
 
-    result.set(name, { byCode: new Map(), byRowOrder });
+    result.set(name, { byRow, byRowOrder });
   }
 
   return result;
