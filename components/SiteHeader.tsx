@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
+import { CartButton } from './cart/CartButton';
 
 export function SiteHeader() {
   return (
@@ -8,16 +9,14 @@ export function SiteHeader() {
         <Link href="/" aria-label="Bootsbaza — на головну">
           <Logo />
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex items-center gap-3 text-sm sm:gap-4">
           <Link
             href="/catalog"
             className="font-semibold text-ink-600 [color:#c3d3c8] transition hover:text-brand"
           >
             Каталог
           </Link>
-          <span className="hidden text-xs font-medium text-ink-600 [color:#7d8f83] sm:block">
-            Футбольне взуття та екіпіровка
-          </span>
+          <CartButton />
         </nav>
       </div>
     </header>
