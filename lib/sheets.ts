@@ -11,7 +11,6 @@ import { SPREADSHEET_ID, SHEETS, SheetDef } from './config';
 import { getApiKey, getAccessToken } from './googleAuth';
 import { normalizeGrid, parseSheet, Cell } from './parse';
 import { Catalog, Product, Section } from './types';
-import { extractEmbeddedImages } from './xlsxImages';
 
 interface RawSheetResponse {
   sheets?: {
@@ -75,27 +74,16 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
     return { sheet, products: parseSheet(sheet, grid) };
   });
 
-  const needImages = parsed.some((p) => p.products.some((x) => !x.image && x.anyInStock));
-  if (needImages) {
-    try {
-      const imagesBySheet = await extractEmbeddedImages(SHEETS);
-      for (const { sheet, products } of parsed) {
-        const map = imagesBySheet.get(sheet.title);
-        if (!map) continue;
-        // Сопоставляем по абсолютной строке листа; запасной вариант — по порядку.
-        products.forEach((product, idx) => {
-          if (product.image) return;
-          const byRow = product._row !== undefined ? map.byRow.get(product._row) : undefined;
-          product.image = byRow ?? map.byRowOrder[idx] ?? null;
-        });
+  // Для товаров без формулы =IMAGE ставим ссылку на ленивую отдачу фото из .xlsx
+  // (реальные байты извлекаются по запросу в /api/photo). Затем чистим _row.
+  for (const { sheet, products } of parsed) {
+    for (const p of products) {
+      if (!p.image && p._row !== undefined) {
+        p.image = `/api/photo?s=${sheet.slug}&r=${p._row}`;
       }
-    } catch (err) {
-      console.warn('[bootsbaza] xlsx image fallback failed:', (err as Error).message);
+      delete p._row;
     }
   }
-
-  // Убираем внутреннее поле _row перед отдачей наружу.
-  for (const { products } of parsed) for (const p of products) delete p._row;
 
   const sections = parsed.map(({ sheet, products }) => buildSection(sheet, products));
   return { sections, fetchedAt: Date.now(), source: 'live' };

@@ -1,29 +1,31 @@
 // ---------------------------------------------------------------------------
-// Запасной способ получить фото, если они вставлены в ячейки как объекты
-// (а не формулами =IMAGE). Экспортируем таблицу в .xlsx, распаковываем как zip
-// и достаём картинки из /xl/media, сопоставляя их с листами и строками через
-// drawing*.xml. Работает только при наличии сети до Google (в изолированной
-// среде разработки docs/drive могут быть недоступны) — все ошибки заглушаются,
-// а фронт показывает плейсхолдер.
+// Извлечение вставленных в ячейки фото (объектов) из листов. Sheets API их не
+// отдаёт, поэтому экспортируем таблицу в .xlsx (публичный export с docs или
+// Drive API через сервис-аккаунт), распаковываем zip и достаём картинки из
+// /xl/media, сопоставляя их с листом и строкой через drawing*.xml.
+//
+// Картинки НЕ инлайнятся в каталог (это раздуло бы payload на сотнях товаров).
+// Здесь — кэш «сырых» байтов по (лист, строка); отдаются они по запросу через
+// /api/photo с ленивой подгрузкой. Все сетевые ошибки заглушаются → плейсхолдер.
 // ---------------------------------------------------------------------------
 
 import { unzipSync } from 'fflate';
-import { SPREADSHEET_ID, SheetDef } from './config';
+import { SPREADSHEET_ID, SHEETS } from './config';
 import { getAccessToken } from './googleAuth';
 
-export interface SheetImageMap {
-  /** Фото по абсолютному номеру строки листа (0-based) — точное сопоставление. */
-  byRow: Map<number, string>;
-  /** Фото в порядке сверху вниз (индекс → data URL) — запасное сопоставление. */
-  byRowOrder: string[];
+export interface ExtractedImage {
+  bytes: Uint8Array;
+  contentType: string;
 }
+
+/** title → (0-based номер строки листа → картинка). */
+type ImageIndex = Map<string, Map<number, ExtractedImage>>;
 
 const DRIVE_EXPORT = `https://www.googleapis.com/drive/v3/files/${SPREADSHEET_ID}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`;
 const DOCS_EXPORT = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=xlsx`;
 
 async function downloadXlsx(): Promise<Uint8Array | null> {
   const token = await getAccessToken().catch(() => null);
-  // Предпочитаем Drive API (работает через фаервол-политику облака).
   const attempts: { url: string; headers?: Record<string, string> }[] = [];
   if (token) attempts.push({ url: DRIVE_EXPORT, headers: { Authorization: `Bearer ${token}` } });
   attempts.push({ url: DOCS_EXPORT }); // публичная таблица, без ключа
@@ -48,100 +50,104 @@ function mediaContentType(name: string): string {
   return 'application/octet-stream';
 }
 
-function toDataUrl(bytes: Uint8Array, name: string): string {
-  return `data:${mediaContentType(name)};base64,${Buffer.from(bytes).toString('base64')}`;
-}
-
 const dec = (b: Uint8Array) => new TextDecoder('utf-8').decode(b);
 
-/**
- * Строит соответствие: имя листа → SheetImageMap.
- * Разбор xlsx-структуры: workbook.xml (лист→sheetN), _rels (worksheet→drawing),
- * drawingN.xml (anchor row → rId), drawingN.xml.rels (rId → media/*).
- */
-export async function extractEmbeddedImages(
-  sheets: SheetDef[],
-): Promise<Map<string, SheetImageMap>> {
-  const result = new Map<string, SheetImageMap>();
-  const xlsx = await downloadXlsx();
-  if (!xlsx) return result;
+function buildIndex(files: Record<string, Uint8Array>): ImageIndex {
+  const index: ImageIndex = new Map();
 
-  let files: Record<string, Uint8Array>;
-  try {
-    files = unzipSync(xlsx);
-  } catch {
-    return result;
-  }
-
-  // 1. workbook.xml: порядок листов и их имена.
   const workbook = files['xl/workbook.xml'] ? dec(files['xl/workbook.xml']) : '';
   const sheetOrder: { name: string; rId: string }[] = [];
   for (const m of workbook.matchAll(/<sheet[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"/g)) {
     sheetOrder.push({ name: m[1], rId: m[2] });
   }
 
-  // 2. workbook.xml.rels: rId → worksheets/sheetN.xml
-  const wbRels = files['xl/_rels/workbook.xml.rels']
-    ? dec(files['xl/_rels/workbook.xml.rels'])
-    : '';
+  const wbRels = files['xl/_rels/workbook.xml.rels'] ? dec(files['xl/_rels/workbook.xml.rels']) : '';
   const rIdToTarget = new Map<string, string>();
   for (const m of wbRels.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)) {
     rIdToTarget.set(m[1], m[2].replace(/^\/?xl\//, ''));
   }
 
-  for (const { name, rId } of sheetOrder) {
-    if (!sheets.some((s) => s.title === name)) continue;
-    const wsPath = rIdToTarget.get(rId); // например worksheets/sheet1.xml
-    if (!wsPath) continue;
-    const wsFile = `xl/${wsPath}`;
-    const wsName = wsPath.split('/').pop()!; // sheet1.xml
-    const wsRelsPath = `xl/worksheets/_rels/${wsName}.rels`;
-    const wsRels = files[wsRelsPath] ? dec(files[wsRelsPath]) : '';
+  const wanted = new Set(SHEETS.map((s) => s.title));
 
-    // worksheet → drawing rId → drawings/drawingN.xml
+  for (const { name, rId } of sheetOrder) {
+    if (!wanted.has(name)) continue;
+    const wsPath = rIdToTarget.get(rId);
+    if (!wsPath) continue;
+    const wsName = wsPath.split('/').pop()!;
+    const wsXml = files[`xl/${wsPath}`] ? dec(files[`xl/${wsPath}`]) : '';
+    const wsRels = files[`xl/worksheets/_rels/${wsName}.rels`]
+      ? dec(files[`xl/worksheets/_rels/${wsName}.rels`])
+      : '';
+
     const drawRelTarget = new Map<string, string>();
     for (const m of wsRels.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)) {
       drawRelTarget.set(m[1], m[2]);
     }
-    const wsXml = files[wsFile] ? dec(files[wsFile]) : '';
     const drawRef = wsXml.match(/<drawing[^>]*r:id="([^"]+)"/);
     if (!drawRef) continue;
     let drawTarget = drawRelTarget.get(drawRef[1]);
     if (!drawTarget) continue;
     drawTarget = drawTarget.replace(/^\.\.\//, '').replace(/^\/?xl\//, '');
-    const drawFile = `xl/${drawTarget}`; // drawings/drawing1.xml
     const drawName = drawTarget.split('/').pop()!;
-    const drawXml = files[drawFile] ? dec(files[drawFile]) : '';
-    const drawRelsFile = `xl/drawings/_rels/${drawName}.rels`;
-    const drawRels = files[drawRelsFile] ? dec(files[drawRelsFile]) : '';
+    const drawXml = files[`xl/${drawTarget}`] ? dec(files[`xl/${drawTarget}`]) : '';
+    const drawRels = files[`xl/drawings/_rels/${drawName}.rels`]
+      ? dec(files[`xl/drawings/_rels/${drawName}.rels`])
+      : '';
 
     const embedToMedia = new Map<string, string>();
     for (const m of drawRels.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)) {
-      const target = m[2].replace(/^\.\.\//, ''); // media/image1.png
-      embedToMedia.set(m[1], `xl/${target}`);
+      embedToMedia.set(m[1], `xl/${m[2].replace(/^\.\.\//, '')}`);
     }
 
-    // Каждый anchor: <xdr:from><xdr:row>R</xdr:row> … r:embed="rIdX"
-    const anchors: { row: number; embed: string }[] = [];
+    const byRow = new Map<number, ExtractedImage>();
     for (const a of drawXml.matchAll(
       /<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>[\s\S]*?<\/xdr:from>[\s\S]*?r:embed="([^"]+)"/g,
     )) {
-      anchors.push({ row: parseInt(a[1], 10), embed: a[2] });
-    }
-    anchors.sort((x, y) => x.row - y.row);
-
-    const byRow = new Map<number, string>();
-    const byRowOrder: string[] = [];
-    for (const anchor of anchors) {
-      const mediaPath = embedToMedia.get(anchor.embed);
+      const row = parseInt(a[1], 10);
+      const mediaPath = embedToMedia.get(a[2]);
       if (!mediaPath || !files[mediaPath]) continue;
-      const url = toDataUrl(files[mediaPath], mediaPath);
-      byRow.set(anchor.row, url);
-      byRowOrder.push(url);
+      byRow.set(row, { bytes: files[mediaPath], contentType: mediaContentType(mediaPath) });
     }
-
-    result.set(name, { byRow, byRowOrder });
+    if (byRow.size) index.set(name, byRow);
   }
 
-  return result;
+  return index;
+}
+
+// --- Кэш извлечённых картинок (одна распаковка xlsx на TTL) --------------------
+
+const IMAGES_TTL_MS = 30 * 60 * 1000; // 30 мин
+let cache: { at: number; index: ImageIndex } | null = null;
+let inflight: Promise<ImageIndex> | null = null;
+
+async function loadIndex(): Promise<ImageIndex> {
+  const xlsx = await downloadXlsx();
+  if (!xlsx) return new Map();
+  try {
+    return buildIndex(unzipSync(xlsx));
+  } catch {
+    return new Map();
+  }
+}
+
+async function getIndex(): Promise<ImageIndex> {
+  const now = Date.now();
+  if (cache && now - cache.at < IMAGES_TTL_MS) return cache.index;
+  if (inflight) return inflight;
+  inflight = loadIndex()
+    .then((index) => {
+      cache = { at: Date.now(), index };
+      return index;
+    })
+    .catch(() => cache?.index ?? new Map())
+    .finally(() => {
+      inflight = null;
+    });
+  return inflight;
+}
+
+/** Фото по названию листа и 0-based номеру строки. null → плейсхолдер. */
+export async function getSheetPhoto(title: string, row: number): Promise<ExtractedImage | null> {
+  const index = await getIndex();
+  return index.get(title)?.get(row) ?? null;
 }
