@@ -76,6 +76,8 @@ interface Selection {
   sizes: Set<string>;
   countries: Set<string>;
   query: string;
+  priceFrom: number;
+  priceTo: number;
 }
 
 type Dim = 'section' | 'brand' | 'model' | 'size' | 'country';
@@ -106,6 +108,19 @@ export function CatalogBrowser({
     [sections],
   );
 
+  // Границы цены по реальным ценам сайта.
+  const priceBounds = useMemo(() => {
+    let lo = Infinity;
+    let hi = 0;
+    for (const it of items) {
+      const p = it.product.finalPrice;
+      if (p < lo) lo = p;
+      if (p > hi) hi = p;
+    }
+    if (!isFinite(lo)) lo = 0;
+    return { min: Math.floor(lo), max: Math.ceil(hi) };
+  }, [items]);
+
   const [sel, setSel] = useState<Selection>({
     sections: new Set(initialSections),
     brands: new Set(initialBrands),
@@ -113,6 +128,8 @@ export function CatalogBrowser({
     sizes: new Set(),
     countries: new Set(),
     query: '',
+    priceFrom: priceBounds.min,
+    priceTo: priceBounds.max,
   });
   const [visible, setVisible] = useState(PAGE);
   const [showFilters, setShowFilters] = useState(false);
@@ -126,6 +143,7 @@ export function CatalogBrowser({
       return false;
     if (exclude !== 'country' && sel.countries.size && !sel.countries.has(it.product.country))
       return false;
+    if (it.product.finalPrice < sel.priceFrom || it.product.finalPrice > sel.priceTo) return false;
     if (sel.query) {
       const q = sel.query.toLowerCase();
       if (!it.product.name.toLowerCase().includes(q) && !it.product.code.toLowerCase().includes(q))
@@ -173,8 +191,14 @@ export function CatalogBrowser({
     setVisible(PAGE);
   };
 
+  const priceActive = sel.priceFrom > priceBounds.min || sel.priceTo < priceBounds.max;
   const activeCount =
-    sel.sections.size + sel.brands.size + sel.models.size + sel.sizes.size + sel.countries.size;
+    sel.sections.size +
+    sel.brands.size +
+    sel.models.size +
+    sel.sizes.size +
+    sel.countries.size +
+    (priceActive ? 1 : 0);
 
   const reset = () =>
     setSel({
@@ -184,7 +208,14 @@ export function CatalogBrowser({
       sizes: new Set(),
       countries: new Set(),
       query: '',
+      priceFrom: priceBounds.min,
+      priceTo: priceBounds.max,
     });
+
+  const setPrice = (from: number, to: number) => {
+    setSel((p) => ({ ...p, priceFrom: from, priceTo: to }));
+    setVisible(PAGE);
+  };
 
   // Группировка видимой части. При активной сортировке — плоский список (одна
   // группа без заголовка), иначе — по модели.
@@ -248,6 +279,15 @@ export function CatalogBrowser({
             isChecked={(v) => sel.brands.has(v)}
             onToggle={(v) => toggle('brands', v)}
           />
+          {priceBounds.max > priceBounds.min && (
+            <PriceRange
+              min={priceBounds.min}
+              max={priceBounds.max}
+              from={sel.priceFrom}
+              to={sel.priceTo}
+              onChange={setPrice}
+            />
+          )}
           <FacetGroup
             title="Модель"
             options={sortedFacet(modelFacet)}
@@ -354,6 +394,79 @@ export function CatalogBrowser({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// --- Фильтр цены (от/до + двойной ползунок) ----------------------------------
+function PriceRange({
+  min,
+  max,
+  from,
+  to,
+  onChange,
+}: {
+  min: number;
+  max: number;
+  from: number;
+  to: number;
+  onChange: (from: number, to: number) => void;
+}) {
+  const setFrom = (v: number) => onChange(Math.min(Math.max(min, v), to), to);
+  const setTo = (v: number) => onChange(from, Math.max(Math.min(max, v), from));
+  const pct = (v: number) => ((v - min) / (max - min || 1)) * 100;
+  const inputCls =
+    'w-full rounded-lg border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm [color:#e7efe9] outline-none focus:border-brand/60';
+
+  return (
+    <div className="border-t border-ink-800 pt-4">
+      <h3 className="mb-3 text-sm font-semibold [color:#e7efe9]">Ціна, грн</h3>
+      <div className="mb-3 flex items-center gap-2">
+        <input
+          type="number"
+          value={from}
+          min={min}
+          max={to}
+          aria-label="Ціна від"
+          onChange={(e) => setFrom(Number(e.target.value) || min)}
+          className={inputCls}
+        />
+        <span className="[color:#7d8f83]">—</span>
+        <input
+          type="number"
+          value={to}
+          min={from}
+          max={max}
+          aria-label="Ціна до"
+          onChange={(e) => setTo(Number(e.target.value) || max)}
+          className={inputCls}
+        />
+      </div>
+      <div className="relative h-5">
+        <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded bg-ink-700" />
+        <div
+          className="absolute top-1/2 h-1 -translate-y-1/2 rounded bg-brand"
+          style={{ left: `${pct(from)}%`, width: `${pct(to) - pct(from)}%` }}
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={from}
+          onChange={(e) => setFrom(Number(e.target.value))}
+          className="price-range absolute inset-0 h-5 w-full"
+          aria-label="Мінімальна ціна"
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={to}
+          onChange={(e) => setTo(Number(e.target.value))}
+          className="price-range absolute inset-0 h-5 w-full"
+          aria-label="Максимальна ціна"
+        />
       </div>
     </div>
   );
