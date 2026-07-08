@@ -1,11 +1,37 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { ProductDetail } from '@/components/ProductDetail';
+import { formatUAH } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const id = decodeURIComponent(params.id);
+  const catalog = await getCatalog();
+  const product = catalog.sections.flatMap((s) => s.products).find((p) => p.id === id);
+  if (!product) return { title: 'Товар не знайдено' };
+
+  const description = `${product.name} — ${formatUAH(product.finalPrice)}. Розміри в наявності, розмірна сітка, доставка Новою Поштою.`;
+  return {
+    title: product.name,
+    description,
+    openGraph: {
+      title: product.name,
+      description,
+      type: 'website',
+      images: [product.image || '/logo.svg'],
+    },
+    twitter: { card: 'summary_large_image', title: product.name, description },
+  };
+}
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const id = decodeURIComponent(params.id);

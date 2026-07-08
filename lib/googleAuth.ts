@@ -50,8 +50,9 @@ export async function getAccessToken(): Promise<string | null> {
   const now = Math.floor(Date.now() / 1000);
   if (cachedToken && cachedToken.exp - 60 > now) return cachedToken.token;
 
+  // spreadsheets (чтение+запись — для дублирования заказов) + drive.readonly (xlsx-экспорт фото).
   const scope =
-    'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.readonly';
+    'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly';
   const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claim = base64url(
     JSON.stringify({

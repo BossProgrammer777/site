@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCatalog } from '@/lib/cache';
 import { sendTelegram } from '@/lib/telegram';
+import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -74,10 +75,25 @@ export async function POST(req: NextRequest) {
     `📦 <b>Відділення НП:</b> ${esc(warehouse)}` +
     (body.comment?.trim() ? `\n📝 <b>Коментар:</b> ${esc(body.comment.trim())}` : '');
 
+  // Дублируем в Google-таблицу (если настроено) — не блокируя основной ответ.
+  const itemsSummary = lines
+    .map((l) => `${l.name} (${l.code}), р.${l.size} ×${l.qty}`)
+    .join('; ');
+  const sheetPromise = appendOrderToSheet({
+    name,
+    phone,
+    city,
+    warehouse,
+    itemsSummary,
+    total,
+    comment: body.comment?.trim() || '',
+  }).catch(() => ({ saved: false }));
+
   try {
-    const result = await sendTelegram(text);
-    return NextResponse.json({ ok: true, sent: result.sent, total });
+    const [result, sheet] = await Promise.all([sendTelegram(text), sheetPromise]);
+    return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved, total });
   } catch (e) {
+    // Даже если Telegram упал — заказ мог записаться в таблицу; но сообщаем об ошибке.
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502 });
   }
 }
