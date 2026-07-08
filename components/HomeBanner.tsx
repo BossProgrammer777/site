@@ -3,15 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-// Слайды баннера. Чтобы поставить своё фото — задайте `image` (URL картинки в
-// /public, напр. '/banners/1.jpg'); градиент останется как оверлей поверх фото.
+// Слайды баннера. Фото кладутся в public/banners/ (1.jpg, 2.jpg, 3.jpg).
+// Если фото нет — покажется тёмный фон с текстом (не сломается).
 interface Slide {
   title: string;
   subtitle: string;
   cta: string;
   href: string;
-  gradient: string;
-  image?: string;
+  image: string;
 }
 
 const SLIDES: Slide[] = [
@@ -20,26 +19,27 @@ const SLIDES: Slide[] = [
     subtitle: 'Свіжі моделі Nike, Adidas, Puma вже в наявності',
     cta: 'Дивитися новинки',
     href: '/catalog',
-    gradient: 'from-emerald-600/40 via-ink-900 to-ink-950',
-  },
-  {
-    title: 'Вигідні ціни',
-    subtitle: 'Бюджетні варіанти без бренду — якість за приємні гроші',
-    cta: 'До каталогу',
-    href: '/catalog?section=nb-vzuttia',
-    gradient: 'from-brand/30 via-ink-900 to-ink-950',
+    image: '/banners/2.jpg',
   },
   {
     title: 'Все для гри',
-    subtitle: 'Бутси, сороконіжки, футзалки та повна екіпіровка',
-    cta: 'Обрати',
+    subtitle: "М'ячі, форма, щитки та аксесуари",
+    cta: 'До екіпіровки',
     href: '/catalog',
-    gradient: 'from-teal-600/40 via-ink-900 to-ink-950',
+    image: '/banners/1.jpg',
+  },
+  {
+    title: 'Сороконіжки та футзалки',
+    subtitle: 'Взуття для будь-якого покриття',
+    cta: 'Обрати',
+    href: '/catalog?section=sorokonizhky',
+    image: '/banners/3.jpg',
   },
 ];
 
 export function HomeBanner() {
   const [i, setI] = useState(0);
+  const [broken, setBroken] = useState<Record<number, boolean>>({});
   const n = SLIDES.length;
 
   useEffect(() => {
@@ -47,35 +47,60 @@ export function HomeBanner() {
     return () => clearInterval(t);
   }, [n]);
 
+  const go = (d: number) => setI((v) => (v + d + n) % n);
+
   return (
-    <section className="relative mt-2 overflow-hidden rounded-3xl border border-ink-800">
+    <section className="relative mt-2 overflow-hidden rounded-3xl border border-ink-800 bg-ink-900">
       <div
         className="flex transition-transform duration-700 ease-out"
         style={{ transform: `translateX(-${i * 100}%)` }}
       >
         {SLIDES.map((s, idx) => (
-          <div key={idx} className="relative min-w-full">
-            {s.image && (
+          <div key={idx} className="relative min-w-full bg-ink-900">
+            {!broken[idx] && (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={s.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <img
+                src={s.image}
+                alt=""
+                onError={() => setBroken((b) => ({ ...b, [idx]: true }))}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
             )}
-            <div className={`relative bg-gradient-to-br ${s.gradient}`}>
-              <div className="flex min-h-[220px] flex-col justify-center px-6 py-10 sm:min-h-[300px] sm:px-12">
-                <h2 className="max-w-lg text-2xl font-extrabold leading-tight sm:text-4xl">
-                  {s.title}
-                </h2>
-                <p className="mt-2 max-w-md text-sm [color:#c3d3c8] sm:text-base">{s.subtitle}</p>
-                <Link
-                  href={s.href}
-                  className="mt-5 inline-flex w-fit rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
-                >
-                  {s.cta}
-                </Link>
-              </div>
+            {/* Тёмный оверлей для читаемости текста */}
+            <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-950/55 to-ink-950/10" />
+            <div className="relative flex min-h-[240px] flex-col justify-center px-6 py-10 sm:min-h-[340px] sm:px-12">
+              <h2 className="max-w-lg text-2xl font-extrabold leading-tight drop-shadow sm:text-4xl">
+                {s.title}
+              </h2>
+              <p className="mt-2 max-w-md text-sm [color:#e7efe9] drop-shadow sm:text-base">
+                {s.subtitle}
+              </p>
+              <Link
+                href={s.href}
+                className="mt-5 inline-flex w-fit rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
+              >
+                {s.cta}
+              </Link>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Стрелки */}
+      <button
+        onClick={() => go(-1)}
+        aria-label="Попередній слайд"
+        className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition hover:bg-black/70"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+      </button>
+      <button
+        onClick={() => go(1)}
+        aria-label="Наступний слайд"
+        className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition hover:bg-black/70"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+      </button>
 
       {/* Точки */}
       <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
@@ -86,7 +111,7 @@ export function HomeBanner() {
             onClick={() => setI(idx)}
             className={
               'h-2 rounded-full transition-all ' +
-              (idx === i ? 'w-6 bg-brand' : 'w-2 bg-white/40 hover:bg-white/70')
+              (idx === i ? 'w-6 bg-brand' : 'w-2 bg-white/50 hover:bg-white/80')
             }
           />
         ))}

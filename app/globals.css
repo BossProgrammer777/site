@@ -20,6 +20,18 @@ body {
   background-attachment: fixed;
 }
 
+/* Фоновая картинка сайта (если загружен /public/bg.jpg). Приглушена, чтобы не
+   мешать читаемости. Если файла нет — просто ничего не показывается. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url('/bg.jpg') center / cover no-repeat fixed;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
