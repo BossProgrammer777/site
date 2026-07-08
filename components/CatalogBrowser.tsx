@@ -58,12 +58,14 @@ function cleanModel(group: string | null): string {
 // ---------------------------------------------------------------------------
 const H_ADULT = 'Доросле взуття (розміри 39–45)';
 const H_KIDS = 'Дитяче взуття (розміри 30–38)';
+const H_EQUIP = 'Екіпірування';
 
 export interface CatDef {
   key: string;
   label: string;
   header: string;
 }
+const EQUIP_KEYS = ['eq-socks', 'eq-shields', 'eq-gk', 'eq-thermo', 'eq-bags', 'eq-balls', 'eq-other'];
 const CATEGORY_DEFS: CatDef[] = [
   { key: 'a-butsy', label: 'Бутси', header: H_ADULT },
   { key: 'a-soro', label: 'Сороконіжки', header: H_ADULT },
@@ -71,7 +73,13 @@ const CATEGORY_DEFS: CatDef[] = [
   { key: 'k-butsy', label: 'Бутси', header: H_KIDS },
   { key: 'k-soro', label: 'Сороконіжки', header: H_KIDS },
   { key: 'k-futz', label: 'Футзалки', header: H_KIDS },
-  { key: 'equip', label: 'Екіпірування', header: '' },
+  { key: 'eq-socks', label: 'Гетри та шкарпетки', header: H_EQUIP },
+  { key: 'eq-shields', label: 'Щитки та фіксатори', header: H_EQUIP },
+  { key: 'eq-gk', label: 'Для воротарів', header: H_EQUIP },
+  { key: 'eq-thermo', label: 'Термобілизна', header: H_EQUIP },
+  { key: 'eq-bags', label: 'Сумки для взуття', header: H_EQUIP },
+  { key: 'eq-balls', label: "М'ячі", header: H_EQUIP },
+  { key: 'eq-other', label: 'Інша екіпіровка', header: H_EQUIP },
   { key: 'nb-shoes', label: 'Взуття без бренду', header: '' },
   { key: 'nb-kids', label: 'Дитяче взуття без бренду', header: '' },
 ];
@@ -83,7 +91,19 @@ function footwearType(text: string): 'soro' | 'futz' | 'butsy' {
   return 'butsy';
 }
 
+function equipType(text: string): string {
+  const t = text.toLowerCase();
+  if (/гетр|шкарпет|носк/.test(t)) return 'socks';
+  if (/щитк|фіксатор/.test(t)) return 'shields';
+  if (/воротар|goalkeeper|воротарськ/.test(t)) return 'gk';
+  if (/термо/.test(t)) return 'thermo';
+  if (/сумк/.test(t)) return 'bags';
+  if (/м['’`ʼ]?яч|ball|мяч/.test(t)) return 'balls';
+  return 'other';
+}
+
 function categoryKey(sectionSlug: string, group: string | null, name: string): string {
+  const text = `${group || ''} ${name}`;
   switch (sectionSlug) {
     case 'butsy':
       return 'a-butsy';
@@ -92,10 +112,10 @@ function categoryKey(sectionSlug: string, group: string | null, name: string): s
     case 'futzalky':
       return 'a-futz';
     case 'dytiache-vzuttia':
-      return 'k-' + footwearType(`${group || ''} ${name}`);
+      return 'k-' + footwearType(text);
     case 'ekipiruvannia':
     case 'nb-ekipiruvannia':
-      return 'equip';
+      return 'eq-' + equipType(text);
     case 'nb-vzuttia':
       return 'nb-shoes';
     case 'nb-dytiache-vzuttia':
@@ -118,7 +138,7 @@ function slugToCatKeys(slug: string): string[] {
       return ['k-butsy', 'k-soro', 'k-futz'];
     case 'ekipiruvannia':
     case 'nb-ekipiruvannia':
-      return ['equip'];
+      return EQUIP_KEYS;
     case 'nb-vzuttia':
       return ['nb-shoes'];
     case 'nb-dytiache-vzuttia':
@@ -158,7 +178,7 @@ interface Selection {
 
 type Dim = 'category' | 'brand' | 'model' | 'size' | 'country';
 
-const PAGE = 60;
+const PAGE = 20;
 
 export function CatalogBrowser({
   sections,

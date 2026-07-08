@@ -237,6 +237,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
   const cols = detectColumns(grid);
   const products: Product[] = [];
   let currentGroup: string | null = null;
+  let lastProduct: Product | null = null;
   let counter = 0;
 
   for (let r = cols.headerRowIndex + 1; r < grid.length; r++) {
@@ -258,6 +259,24 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       !!separatorText && !hasCode && !hasName && basePrice === 0 && !photoCell.imageUrl;
     if (isSeparator) {
       currentGroup = separatorText;
+      lastProduct = null;
+      continue;
+    }
+
+    // Строка-продолжение товара на несколько строк (объединённые код/назва/ціна
+    // вгорі, а размеры йдут окремими рядками — напр. воротарські рукавиці 6–10).
+    if (
+      !hasCode &&
+      !hasName &&
+      basePrice <= 0 &&
+      cols.gearSize >= 0 &&
+      lastProduct &&
+      cellAt(row, cols.gearSize).text
+    ) {
+      const label = cellAt(row, cols.gearSize).text;
+      const qty = cols.quantity >= 0 ? parseQty(cellAt(row, cols.quantity)) : 0;
+      lastProduct.sizes.push({ label, qty, inStock: qty > 0 });
+      lastProduct.anyInStock = lastProduct.sizes.some((s) => s.inStock);
       continue;
     }
 
@@ -300,7 +319,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       : null;
 
     counter += 1;
-    products.push({
+    const product: Product = {
       id: `${sheet.slug}-${codeCell.text || counter}`,
       code: codeCell.text,
       name: nameCell.text || `Модель ${codeCell.text}`,
@@ -314,7 +333,9 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       anyInStock,
       mediaUrl,
       _row: r,
-    });
+    };
+    products.push(product);
+    lastProduct = product;
   }
 
   return products;
