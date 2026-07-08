@@ -35,7 +35,7 @@ export default async function HomePage() {
             Футбольний магазин
           </p>
           <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
-            Бутси, сороконіжки та екіпіровка —{' '}
+            Бутси, сороконіжки, футзалки та екіпіровка —{' '}
             <span className="text-brand">завжди в наявності</span>
           </h1>
           <p className="mt-4 max-w-xl text-sm text-ink-600 [color:#9fb3a6] sm:text-base">
