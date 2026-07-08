@@ -94,7 +94,7 @@ const SEEDS: Record<string, Seed[]> = {
 
 export function getDemoCatalog(): Catalog {
   const sections: Section[] = SHEETS.map((sheet) => {
-    const products = makeProducts(sheet, SEEDS[sheet.title] || []);
+    const products = makeProducts(sheet, SEEDS[sheet.title] || []).filter((p) => p.anyInStock);
     const countries = Array.from(new Set(products.map((p) => p.country).filter(Boolean))).sort(
       (a, b) => a.localeCompare(b, 'uk'),
     );

@@ -76,7 +76,6 @@ interface Selection {
   sizes: Set<string>;
   countries: Set<string>;
   query: string;
-  onlyInStock: boolean;
 }
 
 type Dim = 'section' | 'brand' | 'model' | 'size' | 'country';
@@ -106,7 +105,6 @@ export function CatalogBrowser({ sections }: { sections: Section[] }) {
     sizes: new Set(),
     countries: new Set(),
     query: '',
-    onlyInStock: false,
   });
   const [visible, setVisible] = useState(PAGE);
   const [showFilters, setShowFilters] = useState(false);
@@ -124,7 +122,6 @@ export function CatalogBrowser({ sections }: { sections: Section[] }) {
       if (!it.product.name.toLowerCase().includes(q) && !it.product.code.toLowerCase().includes(q))
         return false;
     }
-    if (sel.onlyInStock && !it.product.anyInStock) return false;
     return true;
   };
 
@@ -161,12 +158,7 @@ export function CatalogBrowser({ sections }: { sections: Section[] }) {
   };
 
   const activeCount =
-    sel.sections.size +
-    sel.brands.size +
-    sel.models.size +
-    sel.sizes.size +
-    sel.countries.size +
-    (sel.onlyInStock ? 1 : 0);
+    sel.sections.size + sel.brands.size + sel.models.size + sel.sizes.size + sel.countries.size;
 
   const reset = () =>
     setSel({
@@ -176,7 +168,6 @@ export function CatalogBrowser({ sections }: { sections: Section[] }) {
       sizes: new Set(),
       countries: new Set(),
       query: '',
-      onlyInStock: false,
     });
 
   // Группировка видимой части по модели.
@@ -261,19 +252,6 @@ export function CatalogBrowser({ sections }: { sections: Section[] }) {
               onToggle={(v) => toggle('countries', v)}
             />
           )}
-
-          <label className="flex cursor-pointer items-center gap-2 border-t border-ink-800 pt-4 text-sm text-ink-600 [color:#c3d3c8]">
-            <input
-              type="checkbox"
-              checked={sel.onlyInStock}
-              onChange={(e) => {
-                setSel((p) => ({ ...p, onlyInStock: e.target.checked }));
-                setVisible(PAGE);
-              }}
-              className="h-4 w-4 accent-brand"
-            />
-            Лише в наявності
-          </label>
         </div>
       </aside>
 

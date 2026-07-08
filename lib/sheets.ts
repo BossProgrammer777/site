@@ -90,6 +90,9 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
     }
   }
 
-  const sections = parsed.map(({ sheet, products }) => buildSection(sheet, products));
+  // Показываем только товары с хотя бы одним размером в наличии.
+  const sections = parsed.map(({ sheet, products }) =>
+    buildSection(sheet, products.filter((p) => p.anyInStock)),
+  );
   return { sections, fetchedAt: Date.now(), source: 'live' };
 }
