@@ -12,6 +12,8 @@ export interface SizeAvailability {
 
 export interface Product {
   id: string;
+  /** Читаемый URL-идентификатор («назва-код»). */
+  slug: string;
   code: string;
   name: string;
   country: string;

@@ -17,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const catalog = await getCatalog();
     products = catalog.sections.flatMap((s) =>
       s.products.map((p) => ({
-        url: `${base}/product/${encodeURIComponent(p.id)}`,
+        url: `${base}/product/${encodeURIComponent(p.slug)}`,
         lastModified: now,
         changeFrequency: 'daily' as const,
       })),

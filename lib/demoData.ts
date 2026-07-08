@@ -7,6 +7,7 @@
 
 import { SHEETS, SheetDef, computeFinalPrice } from './config';
 import { Catalog, Product, Section, SizeAvailability } from './types';
+import { productSlug } from './slug';
 
 const SIZE_LABELS = ['39', '40', '41', '42', '43', '44', '45'];
 
@@ -41,6 +42,7 @@ function makeProducts(sheet: SheetDef, seeds: Seed[]): Product[] {
     const sz = sizes(s.present);
     return {
       id: `${sheet.slug}-${s.code}`,
+      slug: productSlug(s.name, s.code),
       code: s.code,
       name: s.name,
       country: s.country,

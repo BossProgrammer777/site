@@ -12,6 +12,7 @@
 
 import { COLUMN_KEYWORDS, SheetDef, computeFinalPrice } from './config';
 import { Product, SizeAvailability } from './types';
+import { productSlug } from './slug';
 
 /** Унифицированное представление ячейки после нормализации grid data. */
 export interface Cell {
@@ -319,10 +320,12 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       : null;
 
     counter += 1;
+    const displayName = nameCell.text || `Модель ${codeCell.text}`;
     const product: Product = {
       id: `${sheet.slug}-${codeCell.text || counter}`,
+      slug: productSlug(displayName, codeCell.text || String(counter)),
       code: codeCell.text,
-      name: nameCell.text || `Модель ${codeCell.text}`,
+      name: displayName,
       country: cellAt(row, cols.country).text,
       finalPrice: computeFinalPrice(basePrice, sheet.kind),
       image: photoCell.imageUrl || null,

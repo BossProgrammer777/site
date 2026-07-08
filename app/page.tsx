@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
+import { HomeBanner } from '@/components/HomeBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +30,10 @@ export default async function HomePage() {
     <>
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 pb-16">
+        <HomeBanner />
+
         {/* Герой */}
-        <section className="py-10 sm:py-16">
+        <section className="py-8 sm:py-12">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-brand">
             Футбольний магазин
           </p>

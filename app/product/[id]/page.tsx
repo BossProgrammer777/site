@@ -14,9 +14,11 @@ export async function generateMetadata({
 }: {
   params: { id: string };
 }): Promise<Metadata> {
-  const id = decodeURIComponent(params.id);
+  const key = decodeURIComponent(params.id);
   const catalog = await getCatalog();
-  const product = catalog.sections.flatMap((s) => s.products).find((p) => p.id === id);
+  const product = catalog.sections
+    .flatMap((s) => s.products)
+    .find((p) => p.slug === key || p.id === key);
   if (!product) return { title: 'Товар не знайдено' };
 
   const description = `${product.name} — ${formatUAH(product.finalPrice)}. Розміри в наявності, розмірна сітка, доставка Новою Поштою.`;
@@ -34,14 +36,14 @@ export async function generateMetadata({
 }
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
-  const id = decodeURIComponent(params.id);
+  const key = decodeURIComponent(params.id);
   const catalog = await getCatalog();
 
   let found = null as
     | { product: (typeof catalog.sections)[number]['products'][number]; sectionLabel: string }
     | null;
   for (const s of catalog.sections) {
-    const p = s.products.find((x) => x.id === id);
+    const p = s.products.find((x) => x.slug === key || x.id === key);
     if (p) {
       found = { product: p, sectionLabel: s.label };
       break;

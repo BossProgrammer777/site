@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCatalog } from '@/lib/cache';
-import { sendTelegram } from '@/lib/telegram';
+import { sendTelegram, sendTelegramPhotos } from '@/lib/telegram';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
+import { siteUrl } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,9 +45,13 @@ export async function POST(req: NextRequest) {
 
   // Пересчитываем цены по актуальному каталогу (не доверяем ценам с клиента).
   const catalog = await getCatalog();
-  const priceById = new Map<string, { price: number; name: string; code: string }>();
+  const priceById = new Map<
+    string,
+    { price: number; name: string; code: string; image: string | null }
+  >();
   for (const s of catalog.sections)
-    for (const p of s.products) priceById.set(p.id, { price: p.finalPrice, name: p.name, code: p.code });
+    for (const p of s.products)
+      priceById.set(p.id, { price: p.finalPrice, name: p.name, code: p.code, image: p.image });
 
   let total = 0;
   const lines = items.map((it) => {
@@ -55,7 +60,15 @@ export async function POST(req: NextRequest) {
     const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
     const sum = price * qty;
     total += sum;
-    return { name: found?.name || it.name, code: found?.code || it.code, size: it.size, qty, price, sum };
+    return {
+      name: found?.name || it.name,
+      code: found?.code || it.code,
+      size: it.size,
+      qty,
+      price,
+      sum,
+      image: found?.image ?? null,
+    };
   });
 
   const itemsText = lines
@@ -89,8 +102,16 @@ export async function POST(req: NextRequest) {
     comment: body.comment?.trim() || '',
   }).catch(() => ({ saved: false }));
 
+  // Фото товаров для Telegram (абсолютные URL).
+  const base = siteUrl();
+  const toAbs = (img: string) => (img.startsWith('http') ? img : `${base}${img}`);
+  const photos = lines
+    .filter((l) => l.image)
+    .map((l) => ({ url: toAbs(l.image as string), caption: `${l.name} · р.${l.size} ×${l.qty}` }));
+
   try {
     const [result, sheet] = await Promise.all([sendTelegram(text), sheetPromise]);
+    await sendTelegramPhotos(photos);
     return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved, total });
   } catch (e) {
     // Даже если Telegram упал — заказ мог записаться в таблицу; но сообщаем об ошибке.

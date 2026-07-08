@@ -42,7 +42,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-900/70 transition hover:border-brand/50 hover:shadow-glow">
-      <Link href={`/product/${encodeURIComponent(product.id)}`} className="relative block aspect-[4/3] overflow-hidden bg-ink-800">
+      <Link href={`/product/${encodeURIComponent(product.slug)}`} className="relative block aspect-[4/3] overflow-hidden bg-ink-800">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
@@ -64,7 +64,7 @@ export function ProductCard({ product }: { product: Product }) {
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div>
-          <Link href={`/product/${encodeURIComponent(product.id)}`}>
+          <Link href={`/product/${encodeURIComponent(product.slug)}`}>
             <h3 className="line-clamp-2 text-sm font-semibold leading-snug [color:#e7efe9] transition hover:text-brand">
               {product.name}
             </h3>

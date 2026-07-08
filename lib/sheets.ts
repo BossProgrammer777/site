@@ -78,6 +78,18 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
     return { sheet, products: parseSheet(sheet, grid) };
   });
 
+  // Гарантируем уникальность slug (для читаемых URL) по всему каталогу.
+  const seenSlugs = new Set<string>();
+  for (const { products } of parsed) {
+    for (const p of products) {
+      let s = p.slug;
+      let n = 2;
+      while (seenSlugs.has(s)) s = `${p.slug}-${n++}`;
+      seenSlugs.add(s);
+      p.slug = s;
+    }
+  }
+
   // Подставляем фото из манифеста (сгенерирован при сборке из папок Drive).
   // Значение манифеста — уже готовый URL картинки. Затем чистим _row.
   for (const { sheet, products } of parsed) {
