@@ -69,13 +69,13 @@ export function ProductDetail({ product }: { product: Product }) {
     <div className="grid gap-8 lg:grid-cols-2">
       {/* Галерея */}
       <div>
-        <div className="overflow-hidden rounded-2xl border border-ink-800 bg-ink-800">
+        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-ink-800 bg-white/95 p-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={mainBroken ? PLACEHOLDER : images[mainIdx] || PLACEHOLDER}
             alt={product.name}
             onError={() => setMainBroken(true)}
-            className="aspect-square w-full object-cover"
+            className="max-h-full max-w-full object-contain"
           />
         </div>
 
@@ -90,12 +90,12 @@ export function ProductDetail({ product }: { product: Product }) {
                   setMainBroken(false);
                 }}
                 className={
-                  'h-16 w-16 overflow-hidden rounded-lg border-2 transition ' +
+                  'h-16 w-16 overflow-hidden rounded-lg border-2 bg-white/95 transition ' +
                   (i === mainIdx ? 'border-brand' : 'border-ink-700 hover:border-brand/50')
                 }
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+                <img src={src} alt="" loading="lazy" className="h-full w-full object-contain p-0.5" />
               </button>
             ))}
           </div>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Bootsbaza">
+  <rect x="0" y="0" width="200" height="400" fill="#0a0d0b"/>
+  <rect x="200" y="0" width="200" height="400" fill="#22c55e"/>
+  <g fill="#ffffff">
+    <path d="M48 96 L111 96 A42 42 0 0 1 111 180 L48 180 Z"/>
+    <path d="M48 220 L111 220 A42 42 0 0 1 111 304 L48 304 Z"/>
+    <path d="M248 96 L311 96 A42 42 0 0 1 311 180 L248 180 Z"/>
+    <path d="M248 220 L311 220 A42 42 0 0 1 311 304 L248 304 Z"/>
+  </g>
+</svg>
