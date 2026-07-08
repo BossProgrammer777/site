@@ -1,23 +1,21 @@
 // ---------------------------------------------------------------------------
-// Извлечение вставленных в ячейки фото при СБОРКЕ (не в рантайме).
-// Скачивает публичный .xlsx-экспорт таблицы один раз, распаковывает, достаёт
-// картинки из /xl/media и раскладывает их в public/photos/<slug>/<row>.<ext>,
-// а соответствие «раздел → строка → файл» пишет в public/photos/manifest.json.
-// Затем сайт отдаёт фото как обычные статические файлы через CDN — быстро и
-// надёжно, без скачивания xlsx на каждый запрос.
+// Формирование карточных фото при СБОРКЕ — из папок Google Drive (колонка «Медіа»).
+// Надёжно и быстро: один запрос к Sheets API за ссылками на папки + лёгкие
+// запросы к Drive API за первым фото каждой папки. Никакого 227 МБ .xlsx.
 //
-// Любая ошибка НЕ роняет сборку: пишется пустой манифест → показываются
-// плейсхолдеры, остальной каталог работает.
+// Пишет public/photos/manifest.json: slug → (номер строки → URL фото).
+// Ошибки НЕ роняют сборку (пустой манифест → плейсхолдеры).
+//
+// Требует включённых Google Sheets API и Google Drive API + GOOGLE_API_KEY.
 // ---------------------------------------------------------------------------
 
-import { unzipSync } from 'fflate';
 import fs from 'fs';
 import path from 'path';
 
 const SPREADSHEET_ID =
   process.env.SPREADSHEET_ID || '1JRAYTZNtYiNgJE6lT1DPpG9eeXP2PUxQcqG-0Hyg0JE';
+const KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_SHEETS_API_KEY || '';
 
-// Должно совпадать с SHEETS в lib/config.ts (title → slug).
 const SHEETS = [
   { title: 'БУТСИ', slug: 'butsy' },
   { title: 'СОРОКОНІЖКИ', slug: 'sorokonizhky' },
@@ -31,152 +29,110 @@ const SHEETS = [
 
 const OUT_DIR = path.join(process.cwd(), 'public', 'photos');
 const MANIFEST = path.join(OUT_DIR, 'manifest.json');
-const DOCS_EXPORT = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=xlsx`;
-
-const dec = (b) => new TextDecoder('utf-8').decode(b);
-const slugByTitle = new Map(SHEETS.map((s) => [s.title, s.slug]));
 
 function ensureEmptyManifest() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(MANIFEST)) fs.writeFileSync(MANIFEST, '{}');
 }
 
-function extInfo(name) {
-  const ext = (name.split('.').pop() || 'bin').toLowerCase();
-  return ext === 'jpeg' ? 'jpg' : ext;
+const folderRe = /\/folders\/([a-zA-Z0-9_-]+)/;
+
+function folderIdFromCells(cells) {
+  for (const c of cells || []) {
+    if (c.hyperlink) {
+      const m = c.hyperlink.match(folderRe);
+      if (m) return m[1];
+    }
+    const f = c.userEnteredValue?.formulaValue;
+    if (f) {
+      const m = f.match(folderRe);
+      if (m) return m[1];
+    }
+  }
+  return null;
 }
 
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+async function fetchAllSheets() {
+  const params = new URLSearchParams();
+  params.set('includeGridData', 'true');
+  params.set('fields', 'sheets(properties(title),data(rowData(values(hyperlink,userEnteredValue))))');
+  for (const s of SHEETS) params.append('ranges', s.title);
+  params.set('key', KEY);
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?${params}`);
+  if (!res.ok) throw new Error(`Sheets API ${res.status}`);
+  return (await res.json()).sheets || [];
+}
 
-async function fetchXlsxOnce() {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120000); // 2 мин
+async function firstImageId(folderId) {
+  const q = encodeURIComponent(
+    `'${folderId}' in parents and mimeType contains 'image/' and trashed=false`,
+  );
+  const url =
+    `https://www.googleapis.com/drive/v3/files?q=${q}&key=${KEY}` +
+    `&fields=files(id,name)&orderBy=name&pageSize=1`;
   try {
-    const res = await fetch(DOCS_EXPORT, {
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': UA,
-        Accept:
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*',
-      },
-    });
-    const ctype = res.headers.get('content-type') || '';
-    console.log(`[extract-images] response: HTTP ${res.status}, type=${ctype}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buf = new Uint8Array(await res.arrayBuffer());
-    // .xlsx — это zip: первые байты "PK". Иначе Google вернул HTML-заглушку и т.п.
-    const isZip = buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b;
-    if (!isZip) {
-      throw new Error(`не .xlsx (size=${buf.length}, начало="${dec(buf.slice(0, 40))}")`);
-    }
-    return buf;
-  } finally {
-    clearTimeout(timer);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const d = await res.json();
+    return d.files?.[0]?.id || null;
+  } catch {
+    return null;
   }
 }
 
-async function download() {
-  let lastErr;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      return await fetchXlsxOnce();
-    } catch (e) {
-      lastErr = e;
-      console.warn(`[extract-images] попытка ${attempt}/3 не удалась: ${e.message}`);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 4000));
+// Ограниченный параллелизм.
+async function mapPool(items, limit, fn) {
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length || 1) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      await fn(items[idx]);
     }
-  }
-  throw lastErr;
+  });
+  await Promise.all(workers);
 }
 
-function buildAnchors(files) {
-  // workbook.xml: порядок листов и r:id
-  const workbook = files['xl/workbook.xml'] ? dec(files['xl/workbook.xml']) : '';
-  const order = [];
-  for (const m of workbook.matchAll(/<sheet[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"/g)) {
-    order.push({ name: m[1], rId: m[2] });
-  }
-  const wbRels = files['xl/_rels/workbook.xml.rels']
-    ? dec(files['xl/_rels/workbook.xml.rels'])
-    : '';
-  const rIdTarget = new Map();
-  for (const m of wbRels.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)) {
-    rIdTarget.set(m[1], m[2].replace(/^\/?xl\//, ''));
-  }
-
-  const result = new Map(); // title → [{ row, mediaPath }]
-  for (const { name, rId } of order) {
-    if (!slugByTitle.has(name)) continue;
-    const wsPath = rIdTarget.get(rId);
-    if (!wsPath) continue;
-    const wsName = wsPath.split('/').pop();
-    const wsXml = files[`xl/${wsPath}`] ? dec(files[`xl/${wsPath}`]) : '';
-    const wsRels = files[`xl/worksheets/_rels/${wsName}.rels`]
-      ? dec(files[`xl/worksheets/_rels/${wsName}.rels`])
-      : '';
-    const drawRelTarget = new Map();
-    for (const m of wsRels.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)) {
-      drawRelTarget.set(m[1], m[2]);
-    }
-    const drawRef = wsXml.match(/<drawing[^>]*r:id="([^"]+)"/);
-    if (!drawRef) continue;
-    let drawTarget = drawRelTarget.get(drawRef[1]);
-    if (!drawTarget) continue;
-    drawTarget = drawTarget.replace(/^\.\.\//, '').replace(/^\/?xl\//, '');
-    const drawName = drawTarget.split('/').pop();
-    const drawXml = files[`xl/${drawTarget}`] ? dec(files[`xl/${drawTarget}`]) : '';
-    const drawRels = files[`xl/drawings/_rels/${drawName}.rels`]
-      ? dec(files[`xl/drawings/_rels/${drawName}.rels`])
-      : '';
-    const embedMedia = new Map();
-    for (const m of drawRels.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)) {
-      embedMedia.set(m[1], `xl/${m[2].replace(/^\.\.\//, '')}`);
-    }
-    const anchors = [];
-    for (const a of drawXml.matchAll(
-      /<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>[\s\S]*?<\/xdr:from>[\s\S]*?r:embed="([^"]+)"/g,
-    )) {
-      const row = parseInt(a[1], 10);
-      const mediaPath = embedMedia.get(a[2]);
-      if (mediaPath && files[mediaPath]) anchors.push({ row, mediaPath });
-    }
-    result.set(name, anchors);
-  }
-  return result;
+function proxied(id) {
+  return `/api/img?src=${encodeURIComponent(`https://lh3.googleusercontent.com/d/${id}=w1000`)}`;
 }
 
 async function main() {
   ensureEmptyManifest();
+  if (!KEY) {
+    console.warn('[extract-images] немає GOOGLE_API_KEY — плейсхолдери.');
+    return;
+  }
   try {
-    console.log('[extract-images] downloading xlsx…');
-    const xlsx = await download();
-    console.log(`[extract-images] xlsx size: ${(xlsx.length / 1e6).toFixed(1)} MB`);
-    const files = unzipSync(xlsx);
-    const anchorsByTitle = buildAnchors(files);
+    console.log('[extract-images] читаю ссылки на папки Drive з таблиці…');
+    const sheetsData = await fetchAllSheets();
+    const bySlug = new Map(SHEETS.map((s) => [s.title, s.slug]));
+
+    // Собираем задания: (slug, row, folderId)
+    const tasks = [];
+    for (const sh of sheetsData) {
+      const slug = bySlug.get(sh.properties?.title);
+      if (!slug) continue;
+      const rows = sh.data?.[0]?.rowData || [];
+      rows.forEach((row, r) => {
+        const fid = folderIdFromCells(row.values);
+        if (fid) tasks.push({ slug, r, fid });
+      });
+    }
+    console.log(`[extract-images] папок знайдено: ${tasks.length}. Тягну перше фото кожної…`);
 
     const manifest = {};
-    let total = 0;
-    for (const { title, slug } of SHEETS) {
-      const anchors = anchorsByTitle.get(title) || [];
-      if (!anchors.length) continue;
-      const dir = path.join(OUT_DIR, slug);
-      fs.mkdirSync(dir, { recursive: true });
-      manifest[slug] = {};
-      for (const { row, mediaPath } of anchors) {
-        const ext = extInfo(mediaPath);
-        const fname = `${row}.${ext}`;
-        fs.writeFileSync(path.join(dir, fname), Buffer.from(files[mediaPath]));
-        manifest[slug][row] = fname;
-        total += 1;
-      }
-      console.log(`[extract-images] ${title}: ${anchors.length} фото`);
-    }
+    let ok = 0;
+    await mapPool(tasks, 12, async (t) => {
+      const id = await firstImageId(t.fid);
+      if (!id) return;
+      (manifest[t.slug] ||= {})[t.r] = proxied(id);
+      ok += 1;
+    });
+
     fs.writeFileSync(MANIFEST, JSON.stringify(manifest));
-    console.log(`[extract-images] готово: ${total} фото, манифест записан.`);
+    console.log(`[extract-images] готово: фото для ${ok} товарів, манифест записаний.`);
   } catch (err) {
-    console.warn('[extract-images] пропущено (фото будут плейсхолдерами):', err.message);
+    console.warn('[extract-images] пропущено (плейсхолдери):', err.message);
     ensureEmptyManifest();
   }
 }

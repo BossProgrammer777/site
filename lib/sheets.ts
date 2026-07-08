@@ -78,13 +78,14 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
     return { sheet, products: parseSheet(sheet, grid) };
   });
 
-  // Подставляем фото из манифеста (сгенерирован при сборке). Затем чистим _row.
+  // Подставляем фото из манифеста (сгенерирован при сборке из папок Drive).
+  // Значение манифеста — уже готовый URL картинки. Затем чистим _row.
   for (const { sheet, products } of parsed) {
     const sheetPhotos = photoManifest[sheet.slug];
     for (const p of products) {
       if (!p.image && p._row !== undefined && sheetPhotos) {
-        const file = sheetPhotos[String(p._row)];
-        if (file) p.image = `/photos/${sheet.slug}/${file}`;
+        const url = sheetPhotos[String(p._row)];
+        if (url) p.image = url;
       }
       delete p._row;
     }
