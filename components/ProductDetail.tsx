@@ -19,6 +19,7 @@ export function ProductDetail({ product }: { product: Product }) {
   const [mainIdx, setMainIdx] = useState(0);
   const [mainBroken, setMainBroken] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoOpen, setVideoOpen] = useState(false);
 
   // Подгружаем доп. фото и видео из папки Google Drive (если Drive API доступен).
   useEffect(() => {
@@ -70,6 +71,7 @@ export function ProductDetail({ product }: { product: Product }) {
   };
 
   return (
+    <>
     <div className="grid gap-8 lg:grid-cols-2">
       {/* Галерея */}
       <div>
@@ -105,31 +107,33 @@ export function ProductDetail({ product }: { product: Product }) {
           </div>
         )}
 
-        {(videoUrl || product.mediaUrl) && (
-          <a
-            href={videoUrl || product.mediaUrl || '#'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-brand/40 bg-brand/10 px-4 py-3 text-sm font-semibold text-brand transition hover:bg-brand/20"
+        {videoUrl ? (
+          <button
+            type="button"
+            onClick={() => setVideoOpen(true)}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-brand/40 bg-brand/10 px-4 py-3 text-sm font-semibold text-brand transition hover:bg-brand/20"
           >
-            {videoUrl ? (
-              <>
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-                Дивитися відео
-              </>
-            ) : (
-              <>
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
-                Більше фото та відео
-              </>
-            )}
-          </a>
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            Дивитися відео
+          </button>
+        ) : (
+          product.mediaUrl && (
+            <a
+              href={product.mediaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-brand/40 bg-brand/10 px-4 py-3 text-sm font-semibold text-brand transition hover:bg-brand/20"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+              Більше фото та відео
+            </a>
+          )
         )}
       </div>
 
@@ -245,5 +249,37 @@ export function ProductDetail({ product }: { product: Product }) {
         )}
       </div>
     </div>
+
+    {/* Модальный плеер видео */}
+    {videoOpen && videoUrl && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+        onClick={() => setVideoOpen(false)}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="relative w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setVideoOpen(false)}
+            aria-label="Закрити"
+            className="absolute -top-11 right-0 flex h-9 w-9 items-center justify-center rounded-full bg-ink-800 text-white ring-1 ring-white/10 hover:bg-ink-700"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+          <div className="overflow-hidden rounded-2xl border border-ink-700 bg-black">
+            <iframe
+              src={videoUrl}
+              title="Відео товару"
+              allow="autoplay; fullscreen"
+              allowFullScreen
+              className="aspect-video w-full"
+            />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

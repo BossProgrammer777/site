@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
   const images = imageIds.map(
     (id) => `/api/img?src=${encodeURIComponent(`https://lh3.googleusercontent.com/d/${id}=w1200`)}`,
   );
-  // Видео — прямая ссылка на просмотр в плеере Google Drive.
-  const video = videoIds[0] ? `https://drive.google.com/file/d/${videoIds[0]}/view` : null;
+  // Видео — embed-ссылка для встроенного плеера (iframe) на самой странице.
+  const video = videoIds[0] ? `https://drive.google.com/file/d/${videoIds[0]}/preview` : null;
 
   return NextResponse.json(
     { images, video },
