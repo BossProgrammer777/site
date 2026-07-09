@@ -3,6 +3,7 @@ import { getCatalog } from '@/lib/cache';
 import { siteUrl } from '@/lib/site';
 import { categoryLandingSlugs, getCategorySeo } from '@/lib/seo';
 import { BRAND_LANDINGS, detectBrand } from '@/lib/brand';
+import { BLOG } from '@/lib/blog';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,9 +11,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const now = new Date();
 
-  const staticPages = ['', '/catalog', '/delivery', '/warranty', '/offer', '/contacts', '/cart'].map(
+  const staticPages = ['', '/catalog', '/blog', '/delivery', '/warranty', '/offer', '/contacts', '/cart'].map(
     (path) => ({ url: `${base}${path}`, lastModified: now }),
   );
+
+  // Статьи блога.
+  const blogPages: MetadataRoute.Sitemap = BLOG.map((a) => ({
+    url: `${base}/blog/${a.slug}`,
+    lastModified: new Date(a.date),
+    changeFrequency: 'monthly' as const,
+  }));
 
   // Посадочные категории.
   const categoryPages: MetadataRoute.Sitemap = categoryLandingSlugs().map((slug) => ({
@@ -54,5 +62,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* без товаров — только статические */
   }
 
-  return [...staticPages, ...categoryPages, ...brandPages, ...products];
+  return [...staticPages, ...categoryPages, ...blogPages, ...brandPages, ...products];
 }

@@ -106,3 +106,26 @@ body::before {
 .info-content .lead {
   color: #9fb3a6;
 }
+.info-content p {
+  margin-top: 0.75rem;
+}
+.info-content table {
+  width: 100%;
+  margin-top: 1rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.info-content th,
+.info-content td {
+  border: 1px solid #1f2a24;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+}
+.info-content th {
+  background: #12211a;
+  color: #e7efe9;
+  font-weight: 600;
+}
+.info-content tbody tr:nth-child(even) td {
+  background: rgba(18, 33, 26, 0.4);
+}

@@ -170,6 +170,32 @@ export function productJsonLd(p: Product, url: string, brand: string | null) {
   };
 }
 
+export function articleJsonLd(a: {
+  title: string;
+  description: string;
+  date: string;
+  url: string;
+}) {
+  const base = siteUrl();
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: a.title,
+    description: a.description,
+    datePublished: a.date,
+    dateModified: a.date,
+    inLanguage: 'uk',
+    mainEntityOfPage: a.url,
+    image: [`${base}/logo.svg`],
+    author: { '@type': 'Organization', name: SITE_NAME, url: base },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      logo: { '@type': 'ImageObject', url: `${base}/logo.svg` },
+    },
+  };
+}
+
 export function faqJsonLd(items: { q: string; a: string }[]) {
   return {
     '@context': 'https://schema.org',

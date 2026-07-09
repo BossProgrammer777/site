@@ -29,6 +29,9 @@ export function MobileMenu() {
             <Link href="/catalog" onClick={close} className="border-b border-ink-800 py-3 text-sm font-semibold [color:#e7efe9]">
               Каталог
             </Link>
+            <Link href="/blog" onClick={close} className="border-b border-ink-800 py-3 text-sm [color:#c3d3c8]">
+              Блог
+            </Link>
             {INFO_LINKS.map((l) => (
               <Link
                 key={l.href}

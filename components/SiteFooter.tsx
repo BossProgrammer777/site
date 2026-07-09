@@ -22,6 +22,11 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
+              <Link href="/blog" className="transition hover:text-brand">
+                Блог
+              </Link>
+            </li>
+            <li>
               <Link href="/cart" className="transition hover:text-brand">
                 Кошик
               </Link>

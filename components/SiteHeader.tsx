@@ -9,6 +9,7 @@ import { PHONES, INFO_LINKS } from '@/lib/contacts';
 // Ссылки нижнего ряда (desktop): Каталог + инфо, кроме «Договір оферти».
 const HEADER_LINKS = [
   { href: '/catalog', label: 'Каталог' },
+  { href: '/blog', label: 'Блог' },
   ...INFO_LINKS.filter((l) => l.href !== '/offer'),
 ];
 
