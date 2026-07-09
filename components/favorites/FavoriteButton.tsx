@@ -1,15 +1,24 @@
 'use client';
 
 import { useFavorites } from './FavoritesContext';
+import { useLocale } from '../LocaleProvider';
 
 export function FavoriteButton({ id, className = '' }: { id: string; className?: string }) {
   const { has, toggle } = useFavorites();
+  const locale = useLocale();
   const active = has(id);
+  const label = active
+    ? locale === 'ru'
+      ? 'Убрать из избранного'
+      : 'Прибрати з обраного'
+    : locale === 'ru'
+      ? 'Добавить в избранное'
+      : 'Додати в обране';
 
   return (
     <button
       type="button"
-      aria-label={active ? 'Прибрати з обраного' : 'Додати в обране'}
+      aria-label={label}
       aria-pressed={active}
       onClick={(e) => {
         e.preventDefault();

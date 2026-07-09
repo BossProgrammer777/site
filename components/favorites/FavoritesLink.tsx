@@ -1,14 +1,16 @@
 'use client';
 
-import Link from 'next/link';
 import { useFavorites } from './FavoritesContext';
+import { LocaleLink } from '../LocaleLink';
+import { useT } from '../LocaleProvider';
 
 export function FavoritesLink() {
   const { count } = useFavorites();
+  const t = useT();
   return (
-    <Link
+    <LocaleLink
       href="/favorites"
-      aria-label="Обране"
+      aria-label={t.fav.title}
       className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-ink-700 bg-ink-900 [color:#c3d3c8] transition hover:border-brand/50 hover:text-brand"
     >
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -19,6 +21,6 @@ export function FavoritesLink() {
           {count}
         </span>
       )}
-    </Link>
+    </LocaleLink>
   );
 }
