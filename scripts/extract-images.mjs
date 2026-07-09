@@ -11,6 +11,7 @@
 
 import { unzipSync } from 'fflate';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 const SPREADSHEET_ID =
@@ -43,35 +44,93 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 const DOCS_EXPORT = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=xlsx`;
 
-async function fetchXlsxOnce() {
+// Докачиваемая потоковая загрузка .xlsx на диск.
+//  .xlsx с встроенными фото весит ~227 МБ — один монолитный запрос часто рвётся
+//  на docs.google.com. Поэтому качаем в файл частями через HTTP Range: обрыв
+//  теряет не весь файл, а только «хвост», и мы докачиваем с места разрыва.
+//  Плюс потоковая запись на диск не держит 227 МБ в памяти билда.
+const STALL_MS = 60000; // нет данных дольше — считаем соединение зависшим
+const MAX_ATTEMPTS = 8;
+
+async function downloadRangeOnce(dest, fromByte) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 180000);
+  let stall = setTimeout(() => controller.abort(), STALL_MS);
+  const bump = () => {
+    clearTimeout(stall);
+    stall = setTimeout(() => controller.abort(), STALL_MS);
+  };
   try {
+    const headers = { 'User-Agent': UA, Accept: 'application/octet-stream,*/*' };
+    if (fromByte > 0) headers.Range = `bytes=${fromByte}-`;
     const res = await fetch(DOCS_EXPORT, {
       redirect: 'follow',
       signal: controller.signal,
-      headers: { 'User-Agent': UA, Accept: 'application/octet-stream,*/*' },
+      headers,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buf = new Uint8Array(await res.arrayBuffer());
-    if (!(buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b)) throw new Error('не .xlsx');
-    return buf;
+    if (!(res.status === 200 || res.status === 206)) throw new Error(`HTTP ${res.status}`);
+    // Сервер проигнорировал Range (отдал 200 вместо 206) — начинаем файл заново.
+    const append = res.status === 206 && fromByte > 0;
+    const total = (() => {
+      const cr = res.headers.get('content-range');
+      if (cr) {
+        const m = cr.match(/\/(\d+)\s*$/);
+        if (m) return parseInt(m[1], 10);
+      }
+      const cl = res.headers.get('content-length');
+      return cl ? (append ? fromByte : 0) + parseInt(cl, 10) : 0;
+    })();
+    const fd = fs.openSync(dest, append ? 'a' : 'w');
+    try {
+      for await (const chunk of res.body) {
+        fs.writeSync(fd, chunk);
+        bump();
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
+    return { size: fs.statSync(dest).size, total };
   } finally {
-    clearTimeout(timer);
+    clearTimeout(stall);
   }
 }
+
 async function downloadXlsx() {
+  const dest = path.join(os.tmpdir(), `bootsbaza-${SPREADSHEET_ID}.xlsx`);
+  try {
+    fs.rmSync(dest, { force: true });
+  } catch {}
   let lastErr;
-  for (let a = 1; a <= 5; a++) {
+  let total = 0;
+  for (let a = 1; a <= MAX_ATTEMPTS; a++) {
+    const from = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
     try {
-      return await fetchXlsxOnce();
+      const r = await downloadRangeOnce(dest, from);
+      if (r.total) total = r.total;
+      // Скачали всё (или сервер не сообщил размер, но поток дошёл до конца).
+      if (!total || r.size >= total) {
+        const size = fs.statSync(dest).size;
+        if (size < 5) throw new Error('порожній файл');
+        const head = Buffer.alloc(4);
+        const fd = fs.openSync(dest, 'r');
+        fs.readSync(fd, head, 0, 4, 0);
+        fs.closeSync(fd);
+        if (!(head[0] === 0x50 && head[1] === 0x4b)) throw new Error('не .xlsx');
+        console.log(`[extract-images] .xlsx завантажено: ${(size / 1048576).toFixed(1)} МБ`);
+        return { dest, size };
+      }
+      console.warn(
+        `[extract-images] xlsx неповний ${(r.size / 1048576).toFixed(1)}/${(total / 1048576).toFixed(1)} МБ — докачую`,
+      );
     } catch (e) {
       lastErr = e;
-      console.warn(`[extract-images] xlsx спроба ${a}/5: ${e.message}`);
-      if (a < 5) await new Promise((r) => setTimeout(r, a * 4000));
+      const now = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+      console.warn(
+        `[extract-images] xlsx спроба ${a}/${MAX_ATTEMPTS} (${(now / 1048576).toFixed(1)} МБ): ${e.message}`,
+      );
+      if (a < MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, Math.min(a * 3000, 12000)));
     }
   }
-  throw lastErr;
+  throw lastErr || new Error('не вдалося завантажити .xlsx');
 }
 function extInfo(name) {
   const ext = (name.split('.').pop() || 'bin').toLowerCase();
@@ -186,7 +245,11 @@ async function main() {
   let embedded = 0;
   try {
     console.log('[extract-images] завантажую .xlsx зі вбудованими фото…');
-    const files = unzipSync(await downloadXlsx());
+    const { dest } = await downloadXlsx();
+    const files = unzipSync(new Uint8Array(fs.readFileSync(dest)));
+    try {
+      fs.rmSync(dest, { force: true });
+    } catch {}
     for (const [title, anchors] of buildAnchors(files)) {
       const slug = slugByTitle.get(title);
       const dir = path.join(OUT_DIR, slug);
