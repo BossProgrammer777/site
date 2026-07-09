@@ -5,6 +5,7 @@ import type { Section } from '@/lib/types';
 import { ProductCard } from './ProductCard';
 import { useLocale, useT } from './LocaleProvider';
 import { catLabel, catHeader } from '@/lib/dictionaries';
+import { canonModel, localizeModel, localizeCountry } from '@/lib/productL10n';
 
 const OTHER = 'Інше';
 const NO_BRAND = 'Без бренду';
@@ -50,7 +51,7 @@ const MODEL_PREFIX = /^(бутси|сороконіжки|футзалки|ко�
 function cleanModel(group: string | null): string {
   if (!group) return 'Інше';
   const stripped = group.replace(MODEL_PREFIX, '').trim();
-  return stripped || group;
+  return canonModel(stripped || group);
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +464,7 @@ export function CatalogBrowser({
                 {group && (
                   <h3 className="mb-4 flex items-center gap-3 text-lg font-bold">
                     <span className="h-5 w-1 rounded-full bg-brand" />
-                    {group}
+                    {localizeModel(group, locale)}
                     <span className="text-sm font-normal text-ink-600 [color:#7d8f83]">{list.length}</span>
                   </h3>
                 )}
@@ -673,7 +674,13 @@ function FacetGroup({
 }) {
   const [open, setOpen] = useState(true);
   const t = useT();
-  const disp = (v: string) => (v === OTHER ? t.filters.other : v === NO_BRAND ? t.filters.noBrand : v);
+  const locale = useLocale();
+  const disp = (v: string) =>
+    v === OTHER
+      ? t.filters.other
+      : v === NO_BRAND
+        ? t.filters.noBrand
+        : localizeCountry(localizeModel(v, locale), locale);
   if (options.length === 0) return null;
 
   return (

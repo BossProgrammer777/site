@@ -53,3 +53,24 @@ export function localizeCountry(country: string | null, locale: Locale): string 
   if (locale !== 'ru' || !country) return country || '';
   return COUNTRY_MAP[normApos(country).toLowerCase().trim()] ?? country;
 }
+
+// Приведение вариативных/русских написаний группы-модели к единому UA-канону,
+// чтобы одинаковые категории не двоились в фильтрах и на UA показывались
+// по-украински. Ключ — в нижнем регистре, апострофы нормализованы.
+const MODEL_CANON: Record<string, string> = {
+  'гетры и носки': 'Гетри та шкарпетки',
+  'гетри та носки': 'Гетри та шкарпетки',
+  'гетри та шкарпетки': 'Гетри та шкарпетки',
+};
+export function canonModel(model: string): string {
+  return MODEL_CANON[normApos(model).toLowerCase().trim()] ?? model;
+}
+
+// UA-канон группы-модели → RU для отображения на /ru.
+const MODEL_RU: Record<string, string> = {
+  'Гетри та шкарпетки': 'Гетры и носки',
+};
+export function localizeModel(model: string, locale: Locale): string {
+  if (locale !== 'ru') return model;
+  return MODEL_RU[model] ?? model;
+}
