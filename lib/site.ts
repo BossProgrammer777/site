@@ -3,6 +3,10 @@
 export function siteUrl(): string {
   const env = process.env.NEXT_PUBLIC_SITE_URL;
   if (env) return env.replace(/\/$/, '');
+  // Публичный production-домен (доступен всем). Предпочтительнее, чем VERCEL_URL —
+  // тот указывает на конкретный деплой и может быть закрыт защитой деплоя.
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return 'http://localhost:3000';
 }

@@ -1,24 +1,44 @@
 // Отправка заказа в Telegram. Токен и chat id — из env; если не заданы, заказ
 // логируется в консоль (для тестового периода без бота).
+//
+// Фото отправляем БАЙТАМИ (сервер сам скачивает картинку и грузит в Telegram),
+// а не ссылкой — так Telegram не зависит от доступности нашего домена, а мы
+// проверяем, что скачали именно изображение, а не HTML-заглушку.
 
 const API = (method: string) =>
   `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/${method}`;
 
-function tg(method: string, body: unknown) {
-  return fetch(API(method), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+interface Pic {
+  data: ArrayBuffer;
+  type: string;
+}
+
+/** Скачивает картинку сервером. Возвращает null, если это не изображение. */
+async function fetchImage(url: string): Promise<Pic | null> {
+  try {
+    const res = await fetch(url, { redirect: 'follow' });
+    if (!res.ok) return null;
+    const type = res.headers.get('content-type') || '';
+    if (!type.startsWith('image/')) return null; // HTML/заглушка — пропускаем
+    const data = await res.arrayBuffer();
+    if (data.byteLength < 100) return null;
+    return { data, type };
+  } catch {
+    return null;
+  }
+}
+
+function ext(type: string): string {
+  if (type.includes('png')) return 'png';
+  if (type.includes('webp')) return 'webp';
+  return 'jpg';
 }
 
 /**
- * Отправка заказа ОДНИМ сообщением: фото товара(ов) + текст заказа подписью.
- *  - 1 фото → sendPhoto с caption;
- *  - 2+ фото → sendMediaGroup, подпись на первом фото;
- *  - нет фото / подпись >1024 симв. / фото не отправилось → текст сообщением.
- * Фото передаются публичными URL (лучше — прямые ссылки, которые Telegram
- * может забрать сам).
+ * Заказ ОДНИМ сообщением: фото товара(ов) + текст заказа подписью.
+ *  - 1 фото → sendPhoto (байты) с caption;
+ *  - 2+ фото → sendMediaGroup (байты), подпись на первом;
+ *  - нет фото / подпись >1024 / фото не скачалось → текст сообщением.
  */
 export async function sendTelegramOrder(
   text: string,
@@ -31,50 +51,61 @@ export async function sendTelegramOrder(
     return { sent: false };
   }
 
-  const pics = photoUrls.filter(Boolean).slice(0, 10);
+  // Скачиваем картинки сервером (до 10).
+  const pics = (
+    await Promise.all(photoUrls.filter(Boolean).slice(0, 10).map(fetchImage))
+  ).filter((p): p is Pic => !!p);
 
-  // Одно сообщение: фото + заказ. Лимит подписи Telegram — 1024 символа.
-  if (pics.length && text.length <= 1024) {
+  const captionFits = text.length <= 1024;
+
+  if (pics.length && captionFits) {
     try {
       if (pics.length === 1) {
-        const res = await tg('sendPhoto', {
-          chat_id: chat,
-          photo: pics[0],
-          caption: text,
-          parse_mode: 'HTML',
-        });
+        const fd = new FormData();
+        fd.append('chat_id', chat);
+        fd.append('caption', text);
+        fd.append('parse_mode', 'HTML');
+        fd.append('photo', new Blob([pics[0].data], { type: pics[0].type }), `photo.${ext(pics[0].type)}`);
+        const res = await fetch(API('sendPhoto'), { method: 'POST', body: fd });
         if (res.ok) return { sent: true };
       } else {
-        const media = pics.map((url, i) =>
+        const fd = new FormData();
+        fd.append('chat_id', chat);
+        const media = pics.map((p, i) =>
           i === 0
-            ? { type: 'photo', media: url, caption: text, parse_mode: 'HTML' }
-            : { type: 'photo', media: url },
+            ? { type: 'photo', media: `attach://p${i}`, caption: text, parse_mode: 'HTML' }
+            : { type: 'photo', media: `attach://p${i}` },
         );
-        const res = await tg('sendMediaGroup', { chat_id: chat, media });
+        fd.append('media', JSON.stringify(media));
+        pics.forEach((p, i) =>
+          fd.append(`p${i}`, new Blob([p.data], { type: p.type }), `p${i}.${ext(p.type)}`),
+        );
+        const res = await fetch(API('sendMediaGroup'), { method: 'POST', body: fd });
         if (res.ok) return { sent: true };
       }
-      // Фото не отправилось (Telegram не смог забрать URL) — падаем на текст.
     } catch {
       /* падаем на текст ниже */
     }
   }
 
-  // Фолбэк: текст отдельным сообщением.
-  const res = await tg('sendMessage', {
-    chat_id: chat,
-    text,
-    parse_mode: 'HTML',
-    disable_web_page_preview: true,
+  // Фолбэк: текст сообщением.
+  const res = await fetch(API('sendMessage'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chat, text, parse_mode: 'HTML', disable_web_page_preview: true }),
   });
   if (!res.ok) throw new Error(`Telegram ${res.status}: ${(await res.text()).slice(0, 200)}`);
 
-  // Если подпись не влезла (длинный заказ), но фото есть — отправим альбомом.
-  if (pics.length && text.length > 1024) {
+  // Длинный заказ (подпись не влезла), но фото есть — отдельным альбомом.
+  if (pics.length && !captionFits) {
     try {
-      await tg('sendMediaGroup', {
-        chat_id: chat,
-        media: pics.map((url) => ({ type: 'photo', media: url })),
-      });
+      const fd = new FormData();
+      fd.append('chat_id', chat);
+      fd.append('media', JSON.stringify(pics.map((p, i) => ({ type: 'photo', media: `attach://p${i}` }))));
+      pics.forEach((p, i) =>
+        fd.append(`p${i}`, new Blob([p.data], { type: p.type }), `p${i}.${ext(p.type)}`),
+      );
+      await fetch(API('sendMediaGroup'), { method: 'POST', body: fd });
     } catch {
       /* фото не критичны */
     }
@@ -83,12 +114,11 @@ export async function sendTelegramOrder(
 }
 
 /**
- * Лучшая ссылка на фото для Telegram: прямой URL Google (в обход нашего
- * прокси/домена), либо абсолютный URL на нашем домене для локальных фото.
+ * URL картинки для скачивания сервером: прямой URL Google (из /api/img?src=…),
+ * либо абсолютный URL на нашем домене для локальных фото.
  */
 export function telegramPhotoUrl(image: string | null, base: string): string | null {
   if (!image) return null;
-  // Проксированное фото: /api/img?src=<encoded> → берём исходный (прямой) URL.
   const m = image.match(/\/api\/img\?src=([^&]+)/);
   if (m) {
     try {
@@ -98,6 +128,6 @@ export function telegramPhotoUrl(image: string | null, base: string): string | n
     }
   }
   if (image.startsWith('http')) return image;
-  if (image.startsWith('/')) return `${base}${image}`; // /photos/… — нужен публичный домен
+  if (image.startsWith('/')) return `${base}${image}`;
   return null;
 }
