@@ -145,14 +145,15 @@
       (`ProductCard`), хлебные крошки (категория/бренд/товар/блог/статья/about),
       блог-список.
 
-### ⏳ Фаза 2c — ОСТАЛОСЬ (интерфейс/UX, на /ru пока UA)
-- [ ] `CatalogBrowser` — фильтры (Вид товару, Бренд, Модель, Розмір, Ціна,
-      заголовки групп H_ADULT/H_KIDS/H_EQUIP, сортировка, «показати ще»,
-      счётчик «Знайдено», плейсхолдеры цены).
-- [ ] Корзина: `cart/CartView`, страница `/cart`.
-- [ ] Чекаут: `CheckoutForm` (поля ФИО/телефон, автокомплит НП), `/checkout`.
-- [ ] Избранное: `favorites/FavoritesView`, `/favorites`.
-- [ ] Кнопки `FavoriteButton`/`CartButton`/`FavoritesLink` (title/aria).
+### Фаза 2c — интерфейс/UX (ГОТОВО)
+- [x] `CatalogBrowser` — фильтры, «Вид товара», заголовки/категории, Бренд/
+      Модель/Размер/Страна, цена, сортировка, поиск, «Найдено», «Показать ещё»,
+      пустое состояние, значения «Другое/Без бренда».
+- [x] Корзина `cart/CartView` + `/cart` (h1).
+- [x] Чекаут `CheckoutForm` (поля, НП, сводка) + `/checkout` (h1).
+- [x] Избранное `favorites/FavoritesView` + `/favorites` (h1).
+- [x] «О нас» — тело RU; данные товара (название/страна) — lib/productL10n.ts.
+- [ ] (мелочь) title/aria на `FavoriteButton`/`CartButton`/`FavoritesLink`.
 
 ### Фаза 3 — контент/SEO (ЧАСТИЧНО готово)
 - [x] Копирайт категорий `CATEGORY_SEO` locale-aware (uk+ru); `categoryCopy`,

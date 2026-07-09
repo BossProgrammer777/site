@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import type { Product, Section } from '@/lib/types';
 import { useFavorites } from './FavoritesContext';
 import { ProductCard } from '../ProductCard';
+import { LocaleLink } from '../LocaleLink';
+import { useLocale, useT } from '../LocaleProvider';
 
 export function FavoritesView() {
   const { ids } = useFavorites();
+  const t = useT();
+  const locale = useLocale();
   const [all, setAll] = useState<Product[] | null>(null);
 
   useEffect(() => {
@@ -30,20 +33,20 @@ export function FavoritesView() {
   if (ids.length === 0) {
     return (
       <div className="rounded-2xl border border-ink-800 bg-ink-900/50 py-16 text-center">
-        <p className="[color:#9fb3a6]">У обраному поки порожньо.</p>
-        <p className="mt-1 text-sm [color:#7d8f83]">Натисніть ♥ на товарі, щоб зберегти його тут.</p>
-        <Link
+        <p className="[color:#9fb3a6]">{t.fav.empty}</p>
+        <p className="mt-1 text-sm [color:#7d8f83]">{t.fav.hint}</p>
+        <LocaleLink
           href="/catalog"
           className="mt-5 inline-block rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
         >
-          До каталогу
-        </Link>
+          {t.cart.toCatalog}
+        </LocaleLink>
       </div>
     );
   }
 
   if (all === null) {
-    return <p className="[color:#7d8f83]">Завантаження…</p>;
+    return <p className="[color:#7d8f83]">{t.fav.loading}</p>;
   }
 
   const favSet = new Set(ids);
@@ -52,7 +55,9 @@ export function FavoritesView() {
   if (favProducts.length === 0) {
     return (
       <div className="rounded-2xl border border-ink-800 bg-ink-900/50 py-16 text-center [color:#9fb3a6]">
-        Обрані товари наразі недоступні (можливо, розпродані).
+        {locale === 'ru'
+          ? 'Избранные товары сейчас недоступны (возможно, распроданы).'
+          : 'Обрані товари наразі недоступні (можливо, розпродані).'}
       </div>
     );
   }

@@ -1,7 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useCart, formatUAH } from './CartContext';
+import { LocaleLink } from '../LocaleLink';
+import { useLocale, useT } from '../LocaleProvider';
+import { localizeProductName } from '@/lib/productL10n';
 
 const PLACEHOLDER = '/placeholder.svg';
 function imageSrc(image: string | null): string {
@@ -13,17 +15,19 @@ function imageSrc(image: string | null): string {
 
 export function CartView() {
   const { items, total, setQty, remove } = useCart();
+  const t = useT();
+  const locale = useLocale();
 
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-ink-800 bg-ink-900/50 py-16 text-center">
-        <p className="text-ink-600 [color:#9fb3a6]">Ваш кошик порожній.</p>
-        <Link
+        <p className="text-ink-600 [color:#9fb3a6]">{t.cart.empty}</p>
+        <LocaleLink
           href="/catalog"
           className="mt-5 inline-block rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
         >
-          До каталогу
-        </Link>
+          {t.cart.toCatalog}
+        </LocaleLink>
       </div>
     );
   }
@@ -43,9 +47,11 @@ export function CartView() {
               className="h-20 w-20 shrink-0 rounded-xl object-cover bg-ink-800"
             />
             <div className="min-w-0 flex-1">
-              <h3 className="line-clamp-2 text-sm font-semibold [color:#e7efe9]">{it.name}</h3>
+              <h3 className="line-clamp-2 text-sm font-semibold [color:#e7efe9]">
+                {localizeProductName(it.name, locale)}
+              </h3>
               <p className="mt-0.5 text-xs [color:#7d8f83]">
-                Код: {it.code} · Розмір: <span className="text-brand">{it.size}</span>
+                {t.cart.code}: {it.code} · {t.cart.size}: <span className="text-brand">{it.size}</span>
               </p>
               <div className="mt-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -71,7 +77,7 @@ export function CartView() {
                     onClick={() => remove(it.key)}
                     className="text-xs [color:#7d8f83] hover:text-red-400"
                   >
-                    Видалити
+                    {t.cart.remove}
                   </button>
                 </div>
               </div>
@@ -82,21 +88,21 @@ export function CartView() {
 
       <aside className="lg:sticky lg:top-[80px] h-fit rounded-2xl border border-ink-800 bg-ink-900/60 p-5">
         <div className="flex items-center justify-between text-sm [color:#c3d3c8]">
-          <span>Разом</span>
+          <span>{t.cart.total}</span>
           <span className="text-xl font-extrabold text-brand">{formatUAH(total)}</span>
         </div>
-        <Link
+        <LocaleLink
           href="/checkout"
           className="mt-4 block rounded-xl bg-brand px-6 py-3 text-center text-sm font-bold text-ink-950 transition hover:bg-brand-400"
         >
-          Оформити замовлення
-        </Link>
-        <Link
+          {t.cart.checkout}
+        </LocaleLink>
+        <LocaleLink
           href="/catalog"
           className="mt-2 block text-center text-xs [color:#7d8f83] hover:text-brand"
         >
-          Продовжити покупки
-        </Link>
+          {t.cart.continueShopping}
+        </LocaleLink>
       </aside>
     </div>
   );

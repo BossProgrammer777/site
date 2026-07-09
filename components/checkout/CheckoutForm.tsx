@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useCart, formatUAH } from '../cart/CartContext';
+import { LocaleLink } from '../LocaleLink';
+import { useLocale, useT } from '../LocaleProvider';
+import { localizeProductName } from '@/lib/productL10n';
 
 interface City {
   ref: string;
@@ -17,6 +19,8 @@ interface Warehouse {
 
 export function CheckoutForm() {
   const { items, total, clear } = useCart();
+  const t = useT();
+  const locale = useLocale();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -83,11 +87,11 @@ export function CheckoutForm() {
     e.preventDefault();
     setError('');
     if (!name.trim() || phone.replace(/\D/g, '').length < 10) {
-      setError('Вкажіть ім’я та коректний номер телефону.');
+      setError(t.checkout.errName);
       return;
     }
     if (!cityQuery.trim() || !warehouse.trim()) {
-      setError('Вкажіть місто та відділення Нової Пошти.');
+      setError(t.checkout.errCity);
       return;
     }
     setSubmitting(true);
@@ -110,7 +114,7 @@ export function CheckoutForm() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Помилка відправки');
+      if (!res.ok || !data.ok) throw new Error(data.error || t.checkout.sendError);
       clear();
       setDone(true);
     } catch (err) {
@@ -128,16 +132,14 @@ export function CheckoutForm() {
             <path d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-xl font-extrabold">Замовлення прийнято!</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm [color:#9fb3a6]">
-          Дякуємо! Ми зв’яжемося з вами найближчим часом для підтвердження та відправки.
-        </p>
-        <Link
+        <h2 className="text-xl font-extrabold">{t.checkout.doneTitle}</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm [color:#9fb3a6]">{t.checkout.doneText}</p>
+        <LocaleLink
           href="/catalog"
           className="mt-6 inline-block rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
         >
-          Продовжити покупки
-        </Link>
+          {t.cart.continueShopping}
+        </LocaleLink>
       </div>
     );
   }
@@ -145,10 +147,10 @@ export function CheckoutForm() {
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-ink-800 bg-ink-900/50 py-16 text-center">
-        <p className="[color:#9fb3a6]">Кошик порожній — немає що оформлювати.</p>
-        <Link href="/catalog" className="mt-5 inline-block rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 hover:bg-brand-400">
-          До каталогу
-        </Link>
+        <p className="[color:#9fb3a6]">{t.checkout.emptyCart}</p>
+        <LocaleLink href="/catalog" className="mt-5 inline-block rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 hover:bg-brand-400">
+          {t.cart.toCatalog}
+        </LocaleLink>
       </div>
     );
   }
@@ -159,10 +161,10 @@ export function CheckoutForm() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Ім’я та прізвище *">
-          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Іван Петренко" />
+        <Field label={t.checkout.name}>
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t.checkout.namePh} />
         </Field>
-        <Field label="Номер телефону *">
+        <Field label={t.checkout.phone}>
           <input
             className={inputCls}
             value={phone}
@@ -172,7 +174,7 @@ export function CheckoutForm() {
           />
         </Field>
 
-        <Field label="Місто *">
+        <Field label={t.checkout.city}>
           <div className="relative">
             <input
               className={inputCls}
@@ -182,7 +184,7 @@ export function CheckoutForm() {
                 setCitySelected(false);
                 setCityRef('');
               }}
-              placeholder="Почніть вводити місто…"
+              placeholder={t.checkout.cityPh}
               autoComplete="off"
             />
             {!manual && cities.length > 0 && !citySelected && (
@@ -195,7 +197,7 @@ export function CheckoutForm() {
                       className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-ink-800"
                     >
                       <span className="[color:#e7efe9]">{c.name}</span>
-                      {c.area && <span className="text-xs [color:#7d8f83]">{c.area} обл.</span>}
+                      {c.area && <span className="text-xs [color:#7d8f83]">{c.area} {t.checkout.region}</span>}
                     </button>
                   </li>
                 ))}
@@ -204,13 +206,13 @@ export function CheckoutForm() {
           </div>
         </Field>
 
-        <Field label="Відділення / поштомат Нової Пошти *">
+        <Field label={t.checkout.warehouse}>
           {manual ? (
             <input
               className={inputCls}
               value={warehouse}
               onChange={(e) => setWarehouse(e.target.value)}
-              placeholder="Напр.: Відділення №5"
+              placeholder={t.checkout.warehousePh}
             />
           ) : (
             <select
@@ -221,10 +223,10 @@ export function CheckoutForm() {
             >
               <option value="">
                 {loadingWh
-                  ? 'Завантаження…'
+                  ? t.checkout.loading
                   : cityRef
-                    ? 'Оберіть відділення'
-                    : 'Спочатку оберіть місто'}
+                    ? t.checkout.pickWh
+                    : t.checkout.pickCityFirst}
               </option>
               {warehouses.map((w) => (
                 <option key={w.ref} value={w.name}>
@@ -235,13 +237,13 @@ export function CheckoutForm() {
           )}
         </Field>
 
-        <Field label="Коментар (необов’язково)">
+        <Field label={t.checkout.comment}>
           <textarea
             className={inputCls}
             rows={3}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Побажання до замовлення"
+            placeholder={t.checkout.commentPh}
           />
         </Field>
 
@@ -252,27 +254,28 @@ export function CheckoutForm() {
           disabled={submitting}
           className="w-full rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400 disabled:opacity-60"
         >
-          {submitting ? 'Відправляємо…' : `Підтвердити замовлення · ${formatUAH(total)}`}
+          {submitting ? t.checkout.submitting : `${t.checkout.confirm} · ${formatUAH(total)}`}
         </button>
       </form>
 
       {/* Сводка заказа */}
       <aside className="lg:sticky lg:top-[80px] h-fit rounded-2xl border border-ink-800 bg-ink-900/60 p-5">
         <h2 className="mb-3 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">
-          Ваше замовлення
+          {t.checkout.yourOrder}
         </h2>
         <ul className="space-y-2 text-sm">
           {items.map((i) => (
             <li key={i.key} className="flex justify-between gap-2 [color:#c3d3c8]">
               <span className="min-w-0 truncate">
-                {i.name} <span className="[color:#7d8f83]">· р.{i.size} × {i.qty}</span>
+                {localizeProductName(i.name, locale)}{' '}
+                <span className="[color:#7d8f83]">· р.{i.size} × {i.qty}</span>
               </span>
               <span className="shrink-0 font-semibold">{formatUAH(i.qty * i.price)}</span>
             </li>
           ))}
         </ul>
         <div className="mt-4 flex items-center justify-between border-t border-ink-800 pt-3">
-          <span className="text-sm [color:#c3d3c8]">Разом</span>
+          <span className="text-sm [color:#c3d3c8]">{t.cart.total}</span>
           <span className="text-xl font-extrabold text-brand">{formatUAH(total)}</span>
         </div>
       </aside>
