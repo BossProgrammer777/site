@@ -127,6 +127,52 @@
 Рекомендация: за один заход в свежем окне — минимум **одна фаза целиком**
 (лучше 1, т.к. она разблокирует остальные). Фазы 2-4 можно дробить свободно.
 
+---
+
+## СТАТУС ВЫПОЛНЕНИЯ (обновлять!)
+
+### ✅ Фаза 1 — фундамент (готово, в проде)
+- [x] Сегмент `app/[lang]/`, middleware prefix-as-needed (UA корень / RU `/ru`).
+- [x] `lib/i18n.ts` (Locale, localeHref, altMeta).
+- [x] hreflang + canonical на страницах (home, catalog, категории, бренды,
+      товар, блог+статья, about, delivery, warranty, offer, contacts).
+
+### ✅ Фаза 2 — интерфейс, ЧАСТИЧНО (готово, в проде)
+- [x] `LocaleProvider`/`useLocale`/`useT`, словарь `lib/dictionaries.ts`.
+- [x] `LocaleLink`, `LanguageSwitcher` (UA/RU, в шапке и мобильном меню).
+- [x] Переведены/локализованы: шапка, подвал, мобильное меню, поиск, главная
+      (герой/плитки/CTA), карточка товара (`ProductDetail`), каталожные карточки
+      (`ProductCard`), хлебные крошки (категория/бренд/товар/блог/статья/about),
+      блог-список.
+
+### ⏳ Фаза 2c — ОСТАЛОСЬ (интерфейс/UX, на /ru пока UA)
+- [ ] `CatalogBrowser` — фильтры (Вид товару, Бренд, Модель, Розмір, Ціна,
+      заголовки групп H_ADULT/H_KIDS/H_EQUIP, сортировка, «показати ще»,
+      счётчик «Знайдено», плейсхолдеры цены).
+- [ ] Корзина: `cart/CartView`, страница `/cart`.
+- [ ] Чекаут: `CheckoutForm` (поля ФИО/телефон, автокомплит НП), `/checkout`.
+- [ ] Избранное: `favorites/FavoritesView`, `/favorites`.
+- [ ] Кнопки `FavoriteButton`/`CartButton`/`FavoritesLink` (title/aria).
+
+### ⏳ Фаза 3 — контент/SEO (В РАБОТЕ)
+- [ ] Копирайт категорий `lib/seo.ts CATEGORY_SEO` (h1/title/description/intro/
+      keywords) — сделать locale-aware (uk+ru). ← начинаем отсюда
+- [ ] `brandCategorySeo` — locale-aware.
+- [ ] Инфостраницы: delivery, warranty, offer, contacts — RU-тексты.
+- [ ] Блог `lib/blog.ts` — 3 статьи на RU (title/description/excerpt/html/faq).
+- [ ] Главная: названия плиток категорий (section labels), слайды баннера
+      (`HomeBanner`), плитки.
+- [ ] Организация JSON-LD/мета — при необходимости RU-описание.
+
+### ⏳ Фаза 4 — SEO-полировка (ОСТАЛОСЬ)
+- [ ] `sitemap.ts` — URL обеих локалей + `<xhtml:link alternates>`.
+- [ ] OpenGraph `locale` + `alternateLocale` по локали.
+- [ ] `noindex` на `/cart`, `/checkout`, `/favorites` (обе локали).
+- [ ] Финальная сверка hreflang по всем типам страниц.
+- [ ] (Опция) RU-синонимы в keywords карточки товара.
+
+---
+
 ## Гарантия безопасности
 На всех фазах **UA-версия на корневых URL остаётся нетронутой** — русская версия
 только добавляется под `/ru`. Откат любой фазы не ломает украинский сайт.

@@ -5,7 +5,7 @@ import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
-import { getCategorySeo, categoryLandingSlugs, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
+import { categoryCopy, categoryLandingSlugs, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
 import { siteUrl } from '@/lib/site';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { dict } from '@/lib/dictionaries';
@@ -21,7 +21,7 @@ export async function generateMetadata({
 }: {
   params: { lang: Locale; category: string };
 }): Promise<Metadata> {
-  const seo = getCategorySeo(params.category);
+  const seo = categoryCopy(params.category, params.lang);
   if (!seo) return { title: 'Категорію не знайдено' };
   const alt = altMeta(params.lang, `/catalog/${seo.slug}`);
   return {
@@ -34,7 +34,7 @@ export async function generateMetadata({
 }
 
 export default async function CategoryPage({ params }: { params: { lang: Locale; category: string } }) {
-  const seo = getCategorySeo(params.category);
+  const seo = categoryCopy(params.category, params.lang);
   if (!seo) notFound();
 
   const catalog = await getCatalog();

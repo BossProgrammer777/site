@@ -32,6 +32,7 @@ export interface Dict {
   };
   breadcrumb: { home: string; catalog: string; blog: string };
   blogList: { subtitle: string; read: string };
+  banner: { title: string; subtitle: string; cta: string }[];
 }
 
 const uk: Dict = {
@@ -70,6 +71,11 @@ const uk: Dict = {
   },
   breadcrumb: { home: 'Головна', catalog: 'Каталог', blog: 'Блог' },
   blogList: { subtitle: 'Поради щодо вибору футбольного взуття та екіпіровки — для гравців, аматорів і батьків юних футболістів.', read: 'Читати →' },
+  banner: [
+    { title: 'Новинки сезону', subtitle: 'Свіжі моделі Nike, Adidas, Puma вже в наявності', cta: 'Дивитися новинки' },
+    { title: 'Все для гри', subtitle: "М'ячі, форма, щитки та аксесуари", cta: 'До екіпіровки' },
+    { title: 'Сороконіжки та футзалки', subtitle: 'Взуття для будь-якого покриття', cta: 'Обрати' },
+  ],
 };
 
 const ru: Dict = {
@@ -108,6 +114,26 @@ const ru: Dict = {
   },
   breadcrumb: { home: 'Главная', catalog: 'Каталог', blog: 'Блог' },
   blogList: { subtitle: 'Советы по выбору футбольной обуви и экипировки — для игроков, любителей и родителей юных футболистов.', read: 'Читать →' },
+  banner: [
+    { title: 'Новинки сезона', subtitle: 'Свежие модели Nike, Adidas, Puma уже в наличии', cta: 'Смотреть новинки' },
+    { title: 'Всё для игры', subtitle: 'Мячи, форма, щитки и аксессуары', cta: 'К экипировке' },
+    { title: 'Сороконожки и футзалки', subtitle: 'Обувь для любого покрытия', cta: 'Выбрать' },
+  ],
 };
 
 export const dict: Record<Locale, Dict> = { uk, ru };
+
+// Названия разделов (плитки на главной) по локали. Ключ — слаг раздела.
+const SECTION_LABELS: Record<string, Record<Locale, string>> = {
+  butsy: { uk: 'Бутси', ru: 'Бутсы' },
+  sorokonizhky: { uk: 'Сороконіжки', ru: 'Сороконожки' },
+  futzalky: { uk: 'Футзалки', ru: 'Футзалки' },
+  'dytiache-vzuttia': { uk: 'Дитяче взуття', ru: 'Детская обувь' },
+  ekipiruvannia: { uk: 'Екіпірування', ru: 'Экипировка' },
+  'nb-vzuttia': { uk: 'Взуття без бренду', ru: 'Обувь без бренда' },
+  'nb-dytiache-vzuttia': { uk: 'Дитяче без бренду', ru: 'Детская без бренда' },
+  'nb-ekipiruvannia': { uk: 'Екіпірування без бренду', ru: 'Экипировка без бренда' },
+};
+export function sectionLabel(slug: string, fallback: string, locale: Locale): string {
+  return SECTION_LABELS[slug]?.[locale] ?? fallback;
+}

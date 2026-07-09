@@ -5,7 +5,7 @@ import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
-import { getCategorySeo, brandCategorySeo, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
+import { categoryCopy, brandCategorySeo, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
 import { brandFromSlug, detectBrand } from '@/lib/brand';
 import { siteUrl } from '@/lib/site';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
@@ -28,10 +28,10 @@ export async function generateMetadata({
 }: {
   params: { lang: Locale; category: string; brand: string };
 }): Promise<Metadata> {
-  const cat = getCategorySeo(params.category);
+  const cat = categoryCopy(params.category, params.lang);
   const brand = brandFromSlug(params.brand);
   if (!cat || !brand) return { title: 'Сторінку не знайдено' };
-  const seo = brandCategorySeo(cat, brand);
+  const seo = brandCategorySeo(cat, brand, params.lang);
   const alt = altMeta(params.lang, `/catalog/${cat.slug}/${params.brand}`);
   return {
     title: { absolute: seo.title },
@@ -46,12 +46,12 @@ export default async function BrandCategoryPage({
 }: {
   params: { lang: Locale; category: string; brand: string };
 }) {
-  const cat = getCategorySeo(params.category);
+  const cat = categoryCopy(params.category, params.lang);
   const brand = brandFromSlug(params.brand);
   if (!cat || !brand) notFound();
   if (!(await brandHasProducts(cat.slug, brand))) notFound();
 
-  const seo = brandCategorySeo(cat, brand);
+  const seo = brandCategorySeo(cat, brand, params.lang);
   const catalog = await getCatalog();
   const base = siteUrl();
   const bc = dict[params.lang].breadcrumb;

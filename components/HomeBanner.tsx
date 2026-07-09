@@ -2,42 +2,24 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useLocale, useT } from './LocaleProvider';
+import { localeHref } from '@/lib/i18n';
 
-// Слайды баннера. Фото кладутся в public/banners/ (1.jpg, 2.jpg, 3.jpg).
-// Если фото нет — покажется тёмный фон с текстом (не сломается).
-interface Slide {
-  title: string;
-  subtitle: string;
-  cta: string;
-  href: string;
-  image: string;
-}
-
-const SLIDES: Slide[] = [
-  {
-    title: 'Новинки сезону',
-    subtitle: 'Свіжі моделі Nike, Adidas, Puma вже в наявності',
-    cta: 'Дивитися новинки',
-    href: '/catalog',
-    image: '/banners/2.jpg',
-  },
-  {
-    title: 'Все для гри',
-    subtitle: "М'ячі, форма, щитки та аксесуари",
-    cta: 'До екіпіровки',
-    href: '/catalog',
-    image: '/banners/1.jpg',
-  },
-  {
-    title: 'Сороконіжки та футзалки',
-    subtitle: 'Взуття для будь-якого покриття',
-    cta: 'Обрати',
-    href: '/catalog/sorokonizhky',
-    image: '/banners/3.jpg',
-  },
+// Ссылки и фото слайдов (текст — из словаря, по индексу).
+const SLIDE_META = [
+  { href: '/catalog', image: '/banners/2.jpg' },
+  { href: '/catalog', image: '/banners/1.jpg' },
+  { href: '/catalog/sorokonizhky', image: '/banners/3.jpg' },
 ];
 
 export function HomeBanner() {
+  const t = useT();
+  const locale = useLocale();
+  const SLIDES = t.banner.map((s, idx) => ({
+    ...s,
+    href: SLIDE_META[idx]?.href ?? '/catalog',
+    image: SLIDE_META[idx]?.image ?? '/banners/1.jpg',
+  }));
   const [i, setI] = useState(0);
   const [broken, setBroken] = useState<Record<number, boolean>>({});
   const n = SLIDES.length;
@@ -76,7 +58,7 @@ export function HomeBanner() {
                 {s.subtitle}
               </p>
               <Link
-                href={s.href}
+                href={localeHref(locale, s.href)}
                 className="mt-5 inline-flex w-fit rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
               >
                 {s.cta}

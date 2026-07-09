@@ -6,7 +6,7 @@ import { SiteFooter } from '@/components/SiteFooter';
 import { HomeBanner } from '@/components/HomeBanner';
 import { getCategorySeo } from '@/lib/seo';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
-import { dict } from '@/lib/dictionaries';
+import { dict, sectionLabel } from '@/lib/dictionaries';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +36,7 @@ export default async function HomePage({ params }: { params: { lang: Locale } })
     .filter((s) => s.products.length > 0)
     .map((s) => ({
       slug: s.slug,
-      label: s.label,
+      label: sectionLabel(s.slug, s.label, params.lang),
       count: s.products.length,
       image: tileImage(s.products.find((p) => p.image)?.image ?? null),
     }));
