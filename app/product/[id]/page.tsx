@@ -6,6 +6,9 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { ProductDetail } from '@/components/ProductDetail';
 import { formatUAH } from '@/lib/format';
+import { siteUrl } from '@/lib/site';
+import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
+import { detectBrand } from '@/lib/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +28,7 @@ export async function generateMetadata({
   return {
     title: product.name,
     description,
+    alternates: { canonical: `${siteUrl()}/product/${encodeURIComponent(product.slug)}` },
     openGraph: {
       title: product.name,
       description,
@@ -40,16 +44,34 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const catalog = await getCatalog();
 
   let found = null as
-    | { product: (typeof catalog.sections)[number]['products'][number]; sectionLabel: string }
+    | {
+        product: (typeof catalog.sections)[number]['products'][number];
+        sectionLabel: string;
+        sectionSlug: string;
+      }
     | null;
   for (const s of catalog.sections) {
     const p = s.products.find((x) => x.slug === key || x.id === key);
     if (p) {
-      found = { product: p, sectionLabel: s.label };
+      found = { product: p, sectionLabel: s.label, sectionSlug: s.slug };
       break;
     }
   }
   if (!found) notFound();
+
+  const base = siteUrl();
+  const { product, sectionLabel, sectionSlug } = found;
+  const catSeo = getCategorySeo(sectionSlug);
+  const catHref = catSeo ? `/catalog/${sectionSlug}` : '/catalog';
+  const productUrl = `${base}/product/${encodeURIComponent(product.slug)}`;
+  const brand = detectBrand(`${product.group || ''} ${product.name}`, sectionSlug);
+
+  const crumbs = breadcrumbJsonLd([
+    { name: 'Головна', url: `${base}/` },
+    { name: 'Каталог', url: `${base}/catalog` },
+    { name: sectionLabel, url: `${base}${catHref}` },
+    { name: product.name, url: productUrl },
+  ]);
 
   return (
     <>
@@ -64,11 +86,21 @@ export default async function ProductPage({ params }: { params: { id: string } }
             Каталог
           </Link>
           <span>/</span>
-          <span className="[color:#c3d3c8]">{found.sectionLabel}</span>
+          <Link href={catHref} className="hover:text-brand">
+            {sectionLabel}
+          </Link>
         </nav>
-        <ProductDetail product={found.product} />
+        <ProductDetail product={product} />
       </main>
       <SiteFooter />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(productJsonLd(product, productUrl, brand)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(crumbs) }}
+      />
     </>
   );
 }

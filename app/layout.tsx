@@ -4,6 +4,7 @@ import { CartProvider } from '@/components/cart/CartContext';
 import { FavoritesProvider } from '@/components/favorites/FavoritesContext';
 import { Analytics } from '@/components/Analytics';
 import { siteUrl, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
+import { organizationJsonLd, websiteJsonLd, jsonLdScript } from '@/lib/seo';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -42,6 +43,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CartProvider>{children}</CartProvider>
         </FavoritesProvider>
         <Analytics />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd()) }}
+        />
       </body>
     </html>
   );

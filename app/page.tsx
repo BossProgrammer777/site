@@ -3,8 +3,14 @@ import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { HomeBanner } from '@/components/HomeBanner';
+import { getCategorySeo } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+
+// Ссылка на раздел: ЧПУ-посадочная, если она есть, иначе фильтр каталога.
+function sectionHref(slug: string): string {
+  return getCategorySeo(slug) ? `/catalog/${slug}` : `/catalog?section=${slug}`;
+}
 
 function tileImage(image: string | null): string {
   if (!image) return '/placeholder.svg';
@@ -65,7 +71,7 @@ export default async function HomePage() {
             {tiles.map((t) => (
               <Link
                 key={t.slug}
-                href={`/catalog?section=${t.slug}`}
+                href={sectionHref(t.slug)}
                 className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 sm:aspect-[4/3]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}

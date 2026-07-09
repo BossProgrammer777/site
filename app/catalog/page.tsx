@@ -1,9 +1,18 @@
+import type { Metadata } from 'next';
 import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
+import { siteUrl } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: { absolute: 'Каталог футбольного взуття та екіпіровки | Bootsbaza' },
+  description:
+    'Каталог футбольного взуття та екіпіровки: бутси, сороконіжки, футзалки, дитяче взуття, гетри, щитки, м’ячі. Актуальні розміри й ціни, доставка по Україні.',
+  alternates: { canonical: `${siteUrl()}/catalog` },
+};
 
 export default async function CatalogPage({
   searchParams,

@@ -32,7 +32,7 @@ const SLIDES: Slide[] = [
     title: 'Сороконіжки та футзалки',
     subtitle: 'Взуття для будь-якого покриття',
     cta: 'Обрати',
-    href: '/catalog?section=sorokonizhky',
+    href: '/catalog/sorokonizhky',
     image: '/banners/3.jpg',
   },
 ];
