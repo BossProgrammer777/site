@@ -184,10 +184,12 @@ export function CatalogBrowser({
   sections,
   initialSections = [],
   initialBrands = [],
+  initialQuery = '',
 }: {
   sections: Section[];
   initialSections?: string[];
   initialBrands?: string[];
+  initialQuery?: string;
 }) {
   const items = useMemo<Item[]>(
     () =>
@@ -222,7 +224,7 @@ export function CatalogBrowser({
     models: new Set(),
     sizes: new Set(),
     countries: new Set(),
-    query: '',
+    query: initialQuery,
     priceFrom: priceBounds.min,
     priceTo: priceBounds.max,
   });

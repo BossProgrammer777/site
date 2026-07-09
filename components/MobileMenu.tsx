@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { INFO_LINKS, PHONES } from '@/lib/contacts';
+import { HeaderSearch } from './HeaderSearch';
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
@@ -24,6 +25,7 @@ export function MobileMenu() {
       {open && (
         <div className="absolute left-0 right-0 top-full z-40 border-b border-ink-800 bg-ink-950 shadow-2xl">
           <nav className="mx-auto flex max-w-6xl flex-col px-4 py-2">
+            <HeaderSearch className="py-3" onSubmitted={close} />
             <Link href="/catalog" onClick={close} className="border-b border-ink-800 py-3 text-sm font-semibold [color:#e7efe9]">
               Каталог
             </Link>

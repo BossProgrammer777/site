@@ -8,11 +8,12 @@ export const dynamic = 'force-dynamic';
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: { section?: string; brand?: string };
+  searchParams: { section?: string; brand?: string; q?: string };
 }) {
   const catalog = await getCatalog();
   const initialSections = searchParams.section ? [searchParams.section] : [];
   const initialBrands = searchParams.brand ? [searchParams.brand] : [];
+  const initialQuery = searchParams.q || '';
 
   return (
     <>
@@ -23,6 +24,7 @@ export default async function CatalogPage({
           sections={catalog.sections}
           initialSections={initialSections}
           initialBrands={initialBrands}
+          initialQuery={initialQuery}
         />
       </main>
       <SiteFooter />
