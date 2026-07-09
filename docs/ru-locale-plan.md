@@ -154,15 +154,17 @@
 - [ ] Избранное: `favorites/FavoritesView`, `/favorites`.
 - [ ] Кнопки `FavoriteButton`/`CartButton`/`FavoritesLink` (title/aria).
 
-### ⏳ Фаза 3 — контент/SEO (В РАБОТЕ)
-- [ ] Копирайт категорий `lib/seo.ts CATEGORY_SEO` (h1/title/description/intro/
-      keywords) — сделать locale-aware (uk+ru). ← начинаем отсюда
-- [ ] `brandCategorySeo` — locale-aware.
-- [ ] Инфостраницы: delivery, warranty, offer, contacts — RU-тексты.
-- [ ] Блог `lib/blog.ts` — 3 статьи на RU (title/description/excerpt/html/faq).
-- [ ] Главная: названия плиток категорий (section labels), слайды баннера
-      (`HomeBanner`), плитки.
-- [ ] Организация JSON-LD/мета — при необходимости RU-описание.
+### Фаза 3 — контент/SEO (ЧАСТИЧНО готово)
+- [x] Копирайт категорий `CATEGORY_SEO` locale-aware (uk+ru); `categoryCopy`,
+      `brandCategorySeo(cat, brand, locale)`. RU Title/H1/Description на
+      категориях и брендах — в проде.
+- [x] Главная: названия плиток (`sectionLabel`), слайды баннера (`HomeBanner`).
+- [x] Инфостраницы delivery, warranty, contacts — RU (+ FAQ-разметка delivery).
+- [ ] **Инфостраница `offer` (публичная оферта)** — RU (длинный юртекст; сейчас
+      на /ru показывается UA — приемлемо, но не переведено).
+- [ ] **Блог `lib/blog.ts` — 3 статьи на RU** (сделать структуру locale-keyed:
+      title/description/excerpt/html/faq для uk+ru; перевести 3 статьи). Сейчас
+      на /ru статьи показываются на UA (graceful).
 
 ### ⏳ Фаза 4 — SEO-полировка (ОСТАЛОСЬ)
 - [ ] `sitemap.ts` — URL обеих локалей + `<xhtml:link alternates>`.
