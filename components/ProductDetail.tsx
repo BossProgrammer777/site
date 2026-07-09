@@ -13,6 +13,22 @@ function folderId(url: string | null): string | null {
   return m ? m[1] : null;
 }
 
+// Текст об отправке по времени Киева: будни до 13:00 → «сьогодні», иначе —
+// «наступного робочого дня». Отправка день-в-день только по будням.
+function shippingText(): string {
+  try {
+    const kyiv = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Kyiv' }));
+    const day = kyiv.getDay(); // 0 — неділя, 6 — субота
+    const isWeekday = day >= 1 && day <= 5;
+    if (isWeekday && kyiv.getHours() < 13) {
+      return 'Відправка сьогодні при замовленні до 13:00';
+    }
+    return 'Відправка наступного робочого дня';
+  } catch {
+    return 'Швидка відправка «Новою Поштою»';
+  }
+}
+
 export function ProductDetail({ product }: { product: Product }) {
   const { add } = useCart();
   const baseImages = product.image ? [productImageSrc(product.image)] : [];
@@ -52,6 +68,41 @@ export function ProductDetail({ product }: { product: Product }) {
   const [size, setSize] = useState<string | null>(inStock.length === 1 ? inStock[0].label : null);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+
+  // Текст отправки считаем после монтирования (во избежание рассинхрона SSR/CSR).
+  const [shipText, setShipText] = useState('Швидка відправка «Новою Поштою»');
+  useEffect(() => setShipText(shippingText()), []);
+
+  // Быстрый заказ «в 1 клик».
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickPhone, setQuickPhone] = useState('');
+  const [quickState, setQuickState] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
+  const [quickError, setQuickError] = useState('');
+
+  const submitQuick = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (quickState === 'sending') return;
+    const digits = quickPhone.replace(/\D/g, '');
+    if (digits.length < 9) {
+      setQuickError('Вкажіть коректний номер телефону');
+      return;
+    }
+    setQuickError('');
+    setQuickState('sending');
+    try {
+      const res = await fetch('/api/quick-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id, size, phone: quickPhone.trim(), qty }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Помилка');
+      setQuickState('ok');
+    } catch (err) {
+      setQuickError((err as Error).message);
+      setQuickState('err');
+    }
+  };
 
   const handleAdd = () => {
     if (!size) return;
@@ -234,6 +285,41 @@ export function ProductDetail({ product }: { product: Product }) {
           </Link>
         )}
 
+        {/* Кнопка быстрого заказа */}
+        <button
+          type="button"
+          onClick={() => {
+            setQuickOpen(true);
+            setQuickState('idle');
+            setQuickError('');
+          }}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-brand/50 bg-brand/10 px-6 py-3 text-sm font-bold text-brand transition hover:bg-brand/20"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L4.5 12.5a.5.5 0 00.4.8H11l-1 8.7 8.5-10.5a.5.5 0 00-.4-.8H12l1-8.7z" />
+          </svg>
+          Швидке замовлення в 1 клік
+        </button>
+
+        {/* Микротекст: наличие + отправка */}
+        <div className="mt-3 space-y-1.5 text-sm">
+          <p className="flex items-center gap-2 font-semibold text-brand">
+            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clipRule="evenodd" />
+            </svg>
+            {size ? `Розмір ${size} в наявності` : 'В наявності'}
+          </p>
+          <p className="flex items-center gap-2 [color:#9fb3a6]">
+            <svg className="h-4 w-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="6" width="13" height="10" rx="1" />
+              <path d="M14 9h4l3 3v4h-7z" />
+              <circle cx="6" cy="18" r="1.6" />
+              <circle cx="18" cy="18" r="1.6" />
+            </svg>
+            {shipText}
+          </p>
+        </div>
+
         {product.notes && (
           <p className="mt-5 rounded-xl bg-ink-900/60 p-3 text-sm [color:#9fb3a6]">{product.notes}</p>
         )}
@@ -328,6 +414,84 @@ export function ProductDetail({ product }: { product: Product }) {
               className="aspect-video w-full"
             />
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Модалка быстрого заказа */}
+    {quickOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+        onClick={() => setQuickOpen(false)}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="relative w-full max-w-sm rounded-2xl border border-ink-700 bg-ink-950 p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => setQuickOpen(false)}
+            aria-label="Закрити"
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-ink-800 text-white/80 hover:bg-ink-700"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+
+          {quickState === 'ok' ? (
+            <div className="py-4 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand/20 text-brand">
+                <svg className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold [color:#e7efe9]">Дякуємо за замовлення!</h3>
+              <p className="mt-2 text-sm [color:#9fb3a6]">
+                Ми зателефонуємо найближчим часом, щоб підтвердити розмір і доставку.
+              </p>
+              <button
+                onClick={() => setQuickOpen(false)}
+                className="mt-5 w-full rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
+              >
+                Зрозуміло
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={submitQuick}>
+              <h3 className="text-lg font-bold [color:#e7efe9]">Швидке замовлення</h3>
+              <p className="mt-1 text-sm [color:#9fb3a6]">
+                Залиште номер — ми передзвонимо й оформимо замовлення за вас.
+              </p>
+              <p className="mt-3 truncate text-sm font-semibold [color:#c3d3c8]">
+                {product.name}
+                {size && <span className="text-brand"> · розмір {size}</span>}
+              </p>
+
+              <input
+                type="tel"
+                inputMode="tel"
+                autoFocus
+                value={quickPhone}
+                onChange={(e) => setQuickPhone(e.target.value)}
+                placeholder="+38 (0__) ___-__-__"
+                className="mt-4 w-full rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm [color:#e7efe9] outline-none placeholder:[color:#6b7d71] focus:border-brand/60 focus:ring-1 focus:ring-brand/40"
+              />
+              {quickError && <p className="mt-2 text-sm text-red-400">{quickError}</p>}
+
+              <button
+                type="submit"
+                disabled={quickState === 'sending'}
+                className="mt-4 w-full rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400 disabled:opacity-60"
+              >
+                {quickState === 'sending' ? 'Надсилаємо…' : 'Замовити дзвінок'}
+              </button>
+              <p className="mt-3 text-center text-xs [color:#6b7d71]">
+                Натискаючи кнопку, ви погоджуєтесь, що з вами звʼяжеться менеджер.
+              </p>
+            </form>
+          )}
         </div>
       </div>
     )}
