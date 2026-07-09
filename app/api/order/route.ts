@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCatalog } from '@/lib/cache';
-import { sendTelegram, sendTelegramPhotos } from '@/lib/telegram';
+import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
@@ -108,16 +108,18 @@ export async function POST(req: NextRequest) {
     comment: sheetComment,
   }).catch(() => ({ saved: false }));
 
-  // Фото товаров для Telegram (абсолютные URL).
+  // Фото товаров для Telegram: прямые URL (в обход прокси/домена).
   const base = siteUrl();
-  const toAbs = (img: string) => (img.startsWith('http') ? img : `${base}${img}`);
-  const photos = lines
-    .filter((l) => l.image)
-    .map((l) => ({ url: toAbs(l.image as string), caption: `${l.name} · р.${l.size} ×${l.qty}` }));
+  const photoUrls = lines
+    .map((l) => telegramPhotoUrl(l.image, base))
+    .filter((u): u is string => !!u);
 
   try {
-    const [result, sheet] = await Promise.all([sendTelegram(text), sheetPromise]);
-    await sendTelegramPhotos(photos);
+    // Заказ одним сообщением: фото + текст подписью.
+    const [result, sheet] = await Promise.all([
+      sendTelegramOrder(text, photoUrls),
+      sheetPromise,
+    ]);
     return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved, total });
   } catch (e) {
     // Даже если Telegram упал — заказ мог записаться в таблицу; но сообщаем об ошибке.

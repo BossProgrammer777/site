@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCatalog } from '@/lib/cache';
-import { sendTelegram, sendTelegramPhotos } from '@/lib/telegram';
+import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
@@ -72,14 +72,13 @@ export async function POST(req: NextRequest) {
   }).catch(() => ({ saved: false }));
 
   const base = siteUrl();
-  const toAbs = (img: string) => (img.startsWith('http') ? img : `${base}${img}`);
-  const photos = product.image
-    ? [{ url: toAbs(product.image), caption: `${product.name}${size ? ` · р.${size}` : ''}` }]
-    : [];
+  const photoUrl = telegramPhotoUrl(product.image, base);
 
   try {
-    const [result, sheet] = await Promise.all([sendTelegram(text), sheetPromise]);
-    if (photos.length) await sendTelegramPhotos(photos);
+    const [result, sheet] = await Promise.all([
+      sendTelegramOrder(text, photoUrl ? [photoUrl] : []),
+      sheetPromise,
+    ]);
     return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502 });
