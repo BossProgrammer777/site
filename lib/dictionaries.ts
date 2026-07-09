@@ -33,6 +33,13 @@ export interface Dict {
   breadcrumb: { home: string; catalog: string; blog: string };
   blogList: { subtitle: string; read: string };
   banner: { title: string; subtitle: string; cta: string }[];
+  filters: {
+    panel: string; reset: string; found: string; showMore: string;
+    viewType: string; brand: string; model: string; size: string; country: string;
+    searchPlaceholder: string; sort: string; sortDefault: string; sortPriceAsc: string;
+    sortPriceDesc: string; sortName: string; price: string; priceFrom: string; priceTo: string;
+    priceMin: string; priceMax: string; other: string; noBrand: string; empty: string;
+  };
 }
 
 const uk: Dict = {
@@ -76,6 +83,14 @@ const uk: Dict = {
     { title: 'Все для гри', subtitle: "М'ячі, форма, щитки та аксесуари", cta: 'До екіпіровки' },
     { title: 'Сороконіжки та футзалки', subtitle: 'Взуття для будь-якого покриття', cta: 'Обрати' },
   ],
+  filters: {
+    panel: 'Фільтри', reset: 'Скинути', found: 'Знайдено товарів', showMore: 'Показати ще',
+    viewType: 'Вид товару', brand: 'Бренд', model: 'Модель', size: 'Розмір', country: 'Країна',
+    searchPlaceholder: 'Пошук за назвою або кодом…', sort: 'Сортування', sortDefault: 'За замовчуванням',
+    sortPriceAsc: 'Спочатку дешевші', sortPriceDesc: 'Спочатку дорожчі', sortName: 'За назвою (А–Я)',
+    price: 'Ціна, грн', priceFrom: 'Ціна від', priceTo: 'Ціна до', priceMin: 'Мінімальна ціна',
+    priceMax: 'Максимальна ціна', other: 'Інше', noBrand: 'Без бренду', empty: 'За обраними фільтрами нічого не знайдено.',
+  },
 };
 
 const ru: Dict = {
@@ -119,6 +134,14 @@ const ru: Dict = {
     { title: 'Всё для игры', subtitle: 'Мячи, форма, щитки и аксессуары', cta: 'К экипировке' },
     { title: 'Сороконожки и футзалки', subtitle: 'Обувь для любого покрытия', cta: 'Выбрать' },
   ],
+  filters: {
+    panel: 'Фильтры', reset: 'Сбросить', found: 'Найдено товаров', showMore: 'Показать ещё',
+    viewType: 'Вид товара', brand: 'Бренд', model: 'Модель', size: 'Размер', country: 'Страна',
+    searchPlaceholder: 'Поиск по названию или коду…', sort: 'Сортировка', sortDefault: 'По умолчанию',
+    sortPriceAsc: 'Сначала дешевле', sortPriceDesc: 'Сначала дороже', sortName: 'По названию (А–Я)',
+    price: 'Цена, грн', priceFrom: 'Цена от', priceTo: 'Цена до', priceMin: 'Минимальная цена',
+    priceMax: 'Максимальная цена', other: 'Другое', noBrand: 'Без бренда', empty: 'По выбранным фильтрам ничего не найдено.',
+  },
 };
 
 export const dict: Record<Locale, Dict> = { uk, ru };
@@ -136,4 +159,36 @@ const SECTION_LABELS: Record<string, Record<Locale, string>> = {
 };
 export function sectionLabel(slug: string, fallback: string, locale: Locale): string {
   return SECTION_LABELS[slug]?.[locale] ?? fallback;
+}
+
+// Названия категорий фильтра «Вид товара» (по ключу CatDef.key).
+const CAT_LABELS: Record<string, Record<Locale, string>> = {
+  'a-butsy': { uk: 'Бутси', ru: 'Бутсы' },
+  'a-soro': { uk: 'Сороконіжки', ru: 'Сороконожки' },
+  'a-futz': { uk: 'Футзалки', ru: 'Футзалки' },
+  'k-butsy': { uk: 'Бутси', ru: 'Бутсы' },
+  'k-soro': { uk: 'Сороконіжки', ru: 'Сороконожки' },
+  'k-futz': { uk: 'Футзалки', ru: 'Футзалки' },
+  'eq-socks': { uk: 'Гетри та шкарпетки', ru: 'Гетры и носки' },
+  'eq-shields': { uk: 'Щитки та фіксатори', ru: 'Щитки и фиксаторы' },
+  'eq-gk': { uk: 'Для воротарів', ru: 'Для вратарей' },
+  'eq-thermo': { uk: 'Термобілизна', ru: 'Термобельё' },
+  'eq-bags': { uk: 'Сумки для взуття', ru: 'Сумки для обуви' },
+  'eq-balls': { uk: "М'ячі", ru: 'Мячи' },
+  'eq-other': { uk: 'Інша екіпіровка', ru: 'Другая экипировка' },
+  'nb-shoes': { uk: 'Взуття без бренду', ru: 'Обувь без бренда' },
+  'nb-kids': { uk: 'Дитяче взуття без бренду', ru: 'Детская обувь без бренда' },
+};
+export function catLabel(key: string, fallback: string, locale: Locale): string {
+  return CAT_LABELS[key]?.[locale] ?? fallback;
+}
+
+// Заголовки групп «Вид товара» (по UA-строке → RU).
+const CAT_HEADERS: Record<string, string> = {
+  'Доросле взуття (розміри 39–45)': 'Взрослая обувь (размеры 39–45)',
+  'Дитяче взуття (розміри 30–38)': 'Детская обувь (размеры 30–38)',
+  Екіпірування: 'Экипировка',
+};
+export function catHeader(uaHeader: string, locale: Locale): string {
+  return locale === 'ru' ? CAT_HEADERS[uaHeader] ?? uaHeader : uaHeader;
 }

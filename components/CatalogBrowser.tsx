@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Section } from '@/lib/types';
 import { ProductCard } from './ProductCard';
+import { useLocale, useT } from './LocaleProvider';
+import { catLabel, catHeader } from '@/lib/dictionaries';
 
 const OTHER = 'Інше';
 const NO_BRAND = 'Без бренду';
@@ -191,6 +193,8 @@ export function CatalogBrowser({
   initialBrands?: string[];
   initialQuery?: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const items = useMemo<Item[]>(
     () =>
       sections.flatMap((s) =>
@@ -336,7 +340,7 @@ export function CatalogBrowser({
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path d="M3 5h14M6 10h8M9 15h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
-        Фільтри{activeCount > 0 && <span className="text-brand">· {activeCount}</span>}
+        {t.filters.panel}{activeCount > 0 && <span className="text-brand">· {activeCount}</span>}
       </button>
 
       {/* Сайдбар фильтров */}
@@ -348,11 +352,11 @@ export function CatalogBrowser({
         <div className="lg:sticky lg:top-[70px] space-y-5 rounded-2xl border border-ink-800 bg-ink-900/50 p-4 lg:max-h-[calc(100vh-90px)] lg:overflow-y-auto">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wide text-ink-600 [color:#c3d3c8]">
-              Фільтри
+              {t.filters.panel}
             </h2>
             {activeCount > 0 && (
               <button onClick={reset} className="text-xs text-brand hover:underline">
-                Скинути
+                {t.filters.reset}
               </button>
             )}
           </div>
@@ -363,7 +367,7 @@ export function CatalogBrowser({
             onToggle={(key) => toggle('categories', key)}
           />
           <FacetGroup
-            title="Бренд"
+            title={t.filters.brand}
             options={sortedFacet(brandFacet)}
             isChecked={(v) => sel.brands.has(v)}
             onToggle={(v) => toggle('brands', v)}
@@ -378,14 +382,14 @@ export function CatalogBrowser({
             />
           )}
           <FacetGroup
-            title="Модель"
+            title={t.filters.model}
             options={sortedFacet(modelFacet)}
             isChecked={(v) => sel.models.has(v)}
             onToggle={(v) => toggle('models', v)}
             scroll
           />
           <FacetGroup
-            title="Розмір"
+            title={t.filters.size}
             options={sortedFacet(sizeFacet, sizeSort)}
             isChecked={(v) => sel.sizes.has(v)}
             onToggle={(v) => toggle('sizes', v)}
@@ -393,7 +397,7 @@ export function CatalogBrowser({
           />
           {countryFacet.size > 0 && (
             <FacetGroup
-              title="Країна"
+              title={t.filters.country}
               options={sortedFacet(countryFacet)}
               isChecked={(v) => sel.countries.has(v)}
               onToggle={(v) => toggle('countries', v)}
@@ -424,7 +428,7 @@ export function CatalogBrowser({
                 setSel((p) => ({ ...p, query: e.target.value }));
                 setVisible(PAGE);
               }}
-              placeholder="Пошук за назвою або кодом…"
+              placeholder={t.filters.searchPlaceholder}
               className="w-full rounded-xl border border-ink-700 bg-ink-900 py-2.5 pl-10 pr-3 text-sm text-ink-600 [color:#e7efe9] outline-none focus:border-brand/60 focus:ring-1 focus:ring-brand/40"
             />
           </div>
@@ -435,22 +439,22 @@ export function CatalogBrowser({
               setVisible(PAGE);
             }}
             className="rounded-xl border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm [color:#e7efe9] outline-none focus:border-brand/60 sm:w-56"
-            aria-label="Сортування"
+            aria-label={t.filters.sort}
           >
-            <option value="default">За замовчуванням</option>
-            <option value="price-asc">Спочатку дешевші</option>
-            <option value="price-desc">Спочатку дорожчі</option>
-            <option value="name">За назвою (А–Я)</option>
+            <option value="default">{t.filters.sortDefault}</option>
+            <option value="price-asc">{t.filters.sortPriceAsc}</option>
+            <option value="price-desc">{t.filters.sortPriceDesc}</option>
+            <option value="name">{t.filters.sortName}</option>
           </select>
         </div>
 
         <p className="mb-4 text-xs text-ink-600 [color:#7d8f83]">
-          Знайдено товарів: <span className="font-semibold text-brand">{filtered.length}</span>
+          {t.filters.found}: <span className="font-semibold text-brand">{filtered.length}</span>
         </p>
 
         {groups.length === 0 ? (
           <div className="mt-16 text-center text-ink-600 [color:#7d8f83]">
-            За обраними фільтрами нічого не знайдено.
+            {t.filters.empty}
           </div>
         ) : (
           <div className="space-y-10">
@@ -479,7 +483,7 @@ export function CatalogBrowser({
               onClick={() => setVisible((v) => v + PAGE)}
               className="rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
             >
-              Показати ще ({filtered.length - visible})
+              {t.filters.showMore} ({filtered.length - visible})
             </button>
           </div>
         )}
@@ -499,6 +503,8 @@ function CategoryFacet({
   onToggle: (key: string) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const t = useT();
+  const locale = useLocale();
   const visible = CATEGORY_DEFS.filter((d) => (counts.get(d.key) || 0) > 0 || isChecked(d.key));
   if (visible.length === 0) return null;
 
@@ -518,7 +524,7 @@ function CategoryFacet({
         onClick={() => setOpen((v) => !v)}
         className="mb-2 flex w-full items-center justify-between text-sm font-semibold [color:#e7efe9]"
       >
-        Вид товару
+        {t.filters.viewType}
         <svg
           className={'h-3.5 w-3.5 [color:#7d8f83] transition ' + (open ? 'rotate-180' : '')}
           viewBox="0 0 20 20"
@@ -533,7 +539,7 @@ function CategoryFacet({
             <div key={i}>
               {b.header && (
                 <p className="mb-1 mt-1 text-xs font-semibold uppercase tracking-wide text-brand/80">
-                  {b.header}
+                  {catHeader(b.header, locale)}
                 </p>
               )}
               <ul className="space-y-1">
@@ -551,7 +557,7 @@ function CategoryFacet({
                         onChange={() => onToggle(d.key)}
                         className="h-4 w-4 shrink-0 accent-brand"
                       />
-                      <span className="flex-1 truncate">{d.label}</span>
+                      <span className="flex-1 truncate">{catLabel(d.key, d.label, locale)}</span>
                       <span className="text-xs [color:#6b7d71]">{counts.get(d.key) || 0}</span>
                     </label>
                   </li>
@@ -579,6 +585,7 @@ function PriceRange({
   to: number;
   onChange: (from: number, to: number) => void;
 }) {
+  const t = useT();
   const setFrom = (v: number) => onChange(Math.min(Math.max(min, v), to), to);
   const setTo = (v: number) => onChange(from, Math.max(Math.min(max, v), from));
   const pct = (v: number) => ((v - min) / (max - min || 1)) * 100;
@@ -595,13 +602,13 @@ function PriceRange({
 
   return (
     <div className="border-t border-ink-800 pt-4">
-      <h3 className="mb-3 text-sm font-semibold [color:#e7efe9]">Ціна, грн</h3>
+      <h3 className="mb-3 text-sm font-semibold [color:#e7efe9]">{t.filters.price}</h3>
       <div className="mb-3 flex items-center gap-2">
         <input
           type="number"
           inputMode="numeric"
           value={fromText}
-          aria-label="Ціна від"
+          aria-label={t.filters.priceFrom}
           onChange={(e) => setFromText(e.target.value)}
           onBlur={commitFrom}
           onKeyDown={(e) => e.key === 'Enter' && commitFrom()}
@@ -612,7 +619,7 @@ function PriceRange({
           type="number"
           inputMode="numeric"
           value={toText}
-          aria-label="Ціна до"
+          aria-label={t.filters.priceTo}
           onChange={(e) => setToText(e.target.value)}
           onBlur={commitTo}
           onKeyDown={(e) => e.key === 'Enter' && commitTo()}
@@ -632,7 +639,7 @@ function PriceRange({
           value={from}
           onChange={(e) => setFrom(Number(e.target.value))}
           className="price-range absolute inset-0 h-5 w-full"
-          aria-label="Мінімальна ціна"
+          aria-label={t.filters.priceMin}
         />
         <input
           type="range"
@@ -641,7 +648,7 @@ function PriceRange({
           value={to}
           onChange={(e) => setTo(Number(e.target.value))}
           className="price-range absolute inset-0 h-5 w-full"
-          aria-label="Максимальна ціна"
+          aria-label={t.filters.priceMax}
         />
       </div>
     </div>
@@ -665,6 +672,8 @@ function FacetGroup({
   grid?: boolean;
 }) {
   const [open, setOpen] = useState(true);
+  const t = useT();
+  const disp = (v: string) => (v === OTHER ? t.filters.other : v === NO_BRAND ? t.filters.noBrand : v);
   if (options.length === 0) return null;
 
   return (
@@ -715,7 +724,7 @@ function FacetGroup({
                     onChange={() => onToggle(value)}
                     className="h-4 w-4 shrink-0 accent-brand"
                   />
-                  <span className="flex-1 truncate">{value}</span>
+                  <span className="flex-1 truncate">{disp(value)}</span>
                   <span className="text-xs text-ink-600 [color:#6b7d71]">{count}</span>
                 </label>
               </li>

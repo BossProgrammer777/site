@@ -7,6 +7,7 @@ import { useCart, formatUAH } from './cart/CartContext';
 import { FavoriteButton } from './favorites/FavoriteButton';
 import { useLocale, useT } from './LocaleProvider';
 import { localeHref } from '@/lib/i18n';
+import { localizeProductName, localizeCountry } from '@/lib/productL10n';
 
 const PLACEHOLDER = '/placeholder.svg';
 
@@ -22,6 +23,8 @@ export function ProductCard({ product }: { product: Product }) {
   const t = useT();
   const locale = useLocale();
   const productHref = localeHref(locale, `/product/${encodeURIComponent(product.slug)}`);
+  const displayName = localizeProductName(product.name, locale);
+  const displayCountry = localizeCountry(product.country, locale);
   const [imgSrc, setImgSrc] = useState(imageSrc(product.image));
   const [gridOpen, setGridOpen] = useState(false);
   const inStockSizes = product.sizes.filter((s) => s.inStock);
@@ -51,14 +54,14 @@ export function ProductCard({ product }: { product: Product }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
-          alt={product.name}
+          alt={displayName}
           loading="lazy"
           onError={() => setImgSrc(PLACEHOLDER)}
           className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
         />
-        {product.country && (
+        {displayCountry && (
           <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-ink-600 [color:#c3d3c8] backdrop-blur ring-1 ring-white/5">
-            {product.country}
+            {displayCountry}
           </span>
         )}
         <FavoriteButton
@@ -71,7 +74,7 @@ export function ProductCard({ product }: { product: Product }) {
         <div>
           <Link href={productHref}>
             <h3 className="line-clamp-2 text-sm font-semibold leading-snug [color:#e7efe9] transition hover:text-brand">
-              {product.name}
+              {displayName}
             </h3>
           </Link>
           {product.code && <p className="mt-1 text-xs [color:#7d8f83]">{t.product.code}: {product.code}</p>}

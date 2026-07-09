@@ -8,6 +8,7 @@ import { FavoriteButton } from './favorites/FavoriteButton';
 import { productImageSrc, PLACEHOLDER } from '@/lib/img';
 import { useLocale, useT } from './LocaleProvider';
 import { localeHref } from '@/lib/i18n';
+import { localizeProductName, localizeCountry } from '@/lib/productL10n';
 
 function folderId(url: string | null): string | null {
   if (!url) return null;
@@ -206,7 +207,9 @@ export function ProductDetail({ product }: { product: Product }) {
       {/* Информация */}
       <div>
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-extrabold leading-tight sm:text-3xl">{product.name}</h1>
+          <h1 className="text-2xl font-extrabold leading-tight sm:text-3xl">
+            {localizeProductName(product.name, locale)}
+          </h1>
           <FavoriteButton
             id={product.id}
             className="mt-1 h-10 w-10 shrink-0 border border-ink-700 bg-ink-900"
@@ -214,7 +217,7 @@ export function ProductDetail({ product }: { product: Product }) {
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm [color:#7d8f83]">
           {product.code && <span>{t.product.code}: {product.code}</span>}
-          {product.country && <span>{t.product.country}: {product.country}</span>}
+          {product.country && <span>{t.product.country}: {localizeCountry(product.country, locale)}</span>}
         </div>
 
         <div className="mt-4 text-3xl font-extrabold text-brand">
