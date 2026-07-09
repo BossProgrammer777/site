@@ -3,11 +3,19 @@ import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { Socials } from '@/components/Socials';
+import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { siteUrl } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
 
 const YOUTUBE_CHANNEL = 'https://youtube.com/@bootsbaza9099';
 const YOUTUBE_SEARCH = 'https://www.youtube.com/results?search_query=bootsbaza';
+
+// Матчі команди для вбудованих плеєрів (решту — на YouTube).
+const MATCH_VIDEOS = [
+  { id: '0xQg4-UWUy8', title: 'Матч команди Bootsbaza' },
+  { id: 'G2e1VeMGpAU', title: 'Матч команди Bootsbaza' },
+  { id: 'mO7KhIGPzD8', title: 'Матч команди Bootsbaza' },
+];
 
 export const metadata: Metadata = {
   title: { absolute: 'Про нас — магазин футбольної екіпіровки з 2018 | Bootsbaza' },
@@ -113,7 +121,14 @@ export default function AboutPage() {
               <path d="M23 12s0-3-.4-4.4a2.5 2.5 0 00-1.8-1.8C19.4 5.4 12 5.4 12 5.4s-7.4 0-8.8.4A2.5 2.5 0 001.4 7.6C1 9 1 12 1 12s0 3 .4 4.4a2.5 2.5 0 001.8 1.8c1.4.4 8.8.4 8.8.4s7.4 0 8.8-.4a2.5 2.5 0 001.8-1.8C23 15 23 12 23 12zM9.8 15.2V8.8l5.4 3.2-5.4 3.2z" />
             </svg>
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            {MATCH_VIDEOS.map((v) => (
+              <YouTubeEmbed key={v.id} id={v.id} title={v.title} />
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
             <a
               href={YOUTUBE_CHANNEL}
               target="_blank"
