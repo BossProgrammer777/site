@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
-import { PHONES, INSTAGRAM, INFO_LINKS } from '@/lib/contacts';
+import { Socials } from './Socials';
+import { PHONES, INFO_LINKS } from '@/lib/contacts';
 
 export function SiteFooter() {
   return (
@@ -59,22 +60,8 @@ export function SiteFooter() {
                 </a>
               </li>
             ))}
-            <li className="pt-1">
-              <a
-                href={INSTAGRAM}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 transition hover:text-brand"
-              >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <rect x="3" y="3" width="18" height="18" rx="5" />
-                  <circle cx="12" cy="12" r="4" />
-                  <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-                </svg>
-                Instagram
-              </a>
-            </li>
           </ul>
+          <Socials className="mt-4" />
         </div>
       </div>
 

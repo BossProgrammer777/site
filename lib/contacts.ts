@@ -7,6 +7,15 @@ export const PHONES = [
 
 export const INSTAGRAM = 'https://www.instagram.com/bootsbaza';
 
+// Соцсети (используются в подвале, странице контактів та мікророзмітці).
+export type SocialId = 'instagram' | 'tiktok' | 'youtube' | 'telegram';
+export const SOCIALS: { id: SocialId; name: string; handle: string; href: string }[] = [
+  { id: 'instagram', name: 'Instagram', handle: '@bootsbaza', href: INSTAGRAM },
+  { id: 'tiktok', name: 'TikTok', handle: '@bootsbaza', href: 'https://www.tiktok.com/@bootsbaza' },
+  { id: 'youtube', name: 'YouTube', handle: '@bootsbaza', href: 'https://youtube.com/@bootsbaza9099' },
+  { id: 'telegram', name: 'Telegram', handle: '@tyresseller', href: 'https://t.me/tyresseller' },
+];
+
 // Ссылки на информационные разделы (для навигации/футера).
 export const INFO_LINKS = [
   { href: '/delivery', label: 'Доставка та оплата' },

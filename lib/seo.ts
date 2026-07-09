@@ -5,7 +5,7 @@
 
 import { Product } from './types';
 import { SITE_NAME, siteUrl } from './site';
-import { PHONES, INSTAGRAM } from './contacts';
+import { PHONES, SOCIALS } from './contacts';
 import { productImageSrc } from './img';
 
 export interface CategorySeo {
@@ -112,7 +112,7 @@ export function organizationJsonLd() {
       areaServed: 'UA',
       availableLanguage: ['uk', 'ru'],
     })),
-    sameAs: [INSTAGRAM],
+    sameAs: SOCIALS.map((s) => s.href),
   };
 }
 

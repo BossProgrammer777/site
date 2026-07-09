@@ -1,5 +1,6 @@
 import { InfoPage } from '@/components/InfoPage';
-import { PHONES, INSTAGRAM } from '@/lib/contacts';
+import { Socials } from '@/components/Socials';
+import { PHONES, SOCIALS } from '@/lib/contacts';
 
 export const metadata = { title: 'Контакти — Bootsbaza' };
 
@@ -20,14 +21,19 @@ export default function ContactsPage() {
         ))}
       </ul>
 
-      <h2>Instagram</h2>
-      <p>
-        Новинки, наявність і акції —{' '}
-        <a href={INSTAGRAM} target="_blank" rel="noopener noreferrer">
-          @bootsbaza
-        </a>
-        .
-      </p>
+      <h2>Ми в соцмережах</h2>
+      <p>Новинки, наявність, огляди й акції — підписуйтесь:</p>
+      <ul>
+        {SOCIALS.map((s) => (
+          <li key={s.id}>
+            {s.name}:{' '}
+            <a href={s.href} target="_blank" rel="noopener noreferrer">
+              {s.handle}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <Socials className="mt-1" />
 
       <h2>Графік роботи</h2>
       <p>Приймаємо замовлення на сайті цілодобово. Обробка та консультації — щодня з 9:00 до 21:00.</p>
