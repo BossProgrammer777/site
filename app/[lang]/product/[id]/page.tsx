@@ -9,7 +9,8 @@ import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
 import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
 import { detectBrand } from '@/lib/brand';
-import { altMeta, Locale } from '@/lib/i18n';
+import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { dict } from '@/lib/dictionaries';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,9 +41,12 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({ params }: { params: { id: string } }) {
+export default async function ProductPage({ params }: { params: { lang: Locale; id: string } }) {
   const key = decodeURIComponent(params.id);
   const catalog = await getCatalog();
+  const lang = params.lang;
+  const bc = dict[lang].breadcrumb;
+  const lh = (p: string) => localeHref(lang, p);
 
   let found = null as
     | {
@@ -64,13 +68,13 @@ export default async function ProductPage({ params }: { params: { id: string } }
   const { product, sectionLabel, sectionSlug } = found;
   const catSeo = getCategorySeo(sectionSlug);
   const catHref = catSeo ? `/catalog/${sectionSlug}` : '/catalog';
-  const productUrl = `${base}/product/${encodeURIComponent(product.slug)}`;
+  const productUrl = `${base}${lh(`/product/${encodeURIComponent(product.slug)}`)}`;
   const brand = detectBrand(`${product.group || ''} ${product.name}`, sectionSlug);
 
   const crumbs = breadcrumbJsonLd([
-    { name: 'Головна', url: `${base}/` },
-    { name: 'Каталог', url: `${base}/catalog` },
-    { name: sectionLabel, url: `${base}${catHref}` },
+    { name: bc.home, url: `${base}${lh('/')}` },
+    { name: bc.catalog, url: `${base}${lh('/catalog')}` },
+    { name: sectionLabel, url: `${base}${lh(catHref)}` },
     { name: product.name, url: productUrl },
   ]);
 
@@ -79,15 +83,15 @@ export default async function ProductPage({ params }: { params: { id: string } }
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
         <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm [color:#7d8f83]">
-          <Link href="/" className="hover:text-brand">
-            Головна
+          <Link href={lh('/')} className="hover:text-brand">
+            {bc.home}
           </Link>
           <span>/</span>
-          <Link href="/catalog" className="hover:text-brand">
-            Каталог
+          <Link href={lh('/catalog')} className="hover:text-brand">
+            {bc.catalog}
           </Link>
           <span>/</span>
-          <Link href={catHref} className="hover:text-brand">
+          <Link href={lh(catHref)} className="hover:text-brand">
             {sectionLabel}
           </Link>
         </nav>

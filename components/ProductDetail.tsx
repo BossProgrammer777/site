@@ -6,6 +6,8 @@ import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
 import { FavoriteButton } from './favorites/FavoriteButton';
 import { productImageSrc, PLACEHOLDER } from '@/lib/img';
+import { useLocale, useT } from './LocaleProvider';
+import { localeHref } from '@/lib/i18n';
 
 function folderId(url: string | null): string | null {
   if (!url) return null;
@@ -13,33 +15,28 @@ function folderId(url: string | null): string | null {
   return m ? m[1] : null;
 }
 
-// Текст об отправке по времени Киева:
+// Ключ сообщения об отправке по времени Киева:
 //  Пн–Пт до 16:00 та Сб до 12:00 → сьогодні;
 //  Пн–Пт після 16:00 → наступного робочого дня;
 //  Сб після 12:00 і Нд → у понеділок.
-function shippingText(): string {
+type ShipKey = 'today16' | 'todaySat12' | 'nextDay' | 'monday' | 'fast';
+function shippingKey(): ShipKey {
   try {
     const kyiv = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Kyiv' }));
     const day = kyiv.getDay(); // 0 — неділя, 6 — субота
     const hour = kyiv.getHours();
-    if (day >= 1 && day <= 5) {
-      return hour < 16
-        ? 'Відправка сьогодні при замовленні до 16:00'
-        : 'Відправка наступного робочого дня';
-    }
-    if (day === 6) {
-      return hour < 12
-        ? 'Відправка сьогодні при замовленні до 12:00'
-        : 'Відправка в понеділок';
-    }
-    return 'Відправка в понеділок';
+    if (day >= 1 && day <= 5) return hour < 16 ? 'today16' : 'nextDay';
+    if (day === 6) return hour < 12 ? 'todaySat12' : 'monday';
+    return 'monday';
   } catch {
-    return 'Швидка відправка «Новою Поштою»';
+    return 'fast';
   }
 }
 
 export function ProductDetail({ product }: { product: Product }) {
   const { add } = useCart();
+  const t = useT();
+  const locale = useLocale();
   const baseImages = product.image ? [productImageSrc(product.image)] : [];
   const [images, setImages] = useState<string[]>(baseImages.length ? baseImages : [PLACEHOLDER]);
   const [mainIdx, setMainIdx] = useState(0);
@@ -78,9 +75,10 @@ export function ProductDetail({ product }: { product: Product }) {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
 
-  // Текст отправки считаем после монтирования (во избежание рассинхрона SSR/CSR).
-  const [shipText, setShipText] = useState('Швидка відправка «Новою Поштою»');
-  useEffect(() => setShipText(shippingText()), []);
+  // Ключ отправки считаем после монтирования (во избежание рассинхрона SSR/CSR).
+  const [shipKey, setShipKey] = useState<ShipKey>('fast');
+  useEffect(() => setShipKey(shippingKey()), []);
+  const shipText = t.shipping[shipKey];
 
   // Быстрый заказ «в 1 клик».
   const [quickOpen, setQuickOpen] = useState(false);
@@ -93,7 +91,7 @@ export function ProductDetail({ product }: { product: Product }) {
     if (quickState === 'sending') return;
     const digits = quickPhone.replace(/\D/g, '');
     if (digits.length < 9) {
-      setQuickError('Вкажіть коректний номер телефону');
+      setQuickError(t.quick.badPhone);
       return;
     }
     setQuickError('');
@@ -184,7 +182,7 @@ export function ProductDetail({ product }: { product: Product }) {
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
             </svg>
-            Дивитися відео
+            {t.product.watchVideo}
           </button>
         ) : (
           product.mediaUrl && (
@@ -199,7 +197,7 @@ export function ProductDetail({ product }: { product: Product }) {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <path d="M21 15l-5-5L5 21" />
               </svg>
-              Більше фото та відео
+              {t.product.morePhotos}
             </a>
           )
         )}
@@ -215,8 +213,8 @@ export function ProductDetail({ product }: { product: Product }) {
           />
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm [color:#7d8f83]">
-          {product.code && <span>Код: {product.code}</span>}
-          {product.country && <span>Країна: {product.country}</span>}
+          {product.code && <span>{t.product.code}: {product.code}</span>}
+          {product.country && <span>{t.product.country}: {product.country}</span>}
         </div>
 
         <div className="mt-4 text-3xl font-extrabold text-brand">
@@ -226,7 +224,7 @@ export function ProductDetail({ product }: { product: Product }) {
         {/* Размеры */}
         <div className="mt-6">
           <p className="mb-2 text-sm font-semibold [color:#c3d3c8]">
-            Розмір {size && <span className="text-brand">· обрано {size}</span>}
+            {t.product.size} {size && <span className="text-brand">· {t.product.chosen} {size}</span>}
           </p>
           <div className="flex flex-wrap gap-2">
             {product.sizes.map((s) => {
@@ -284,13 +282,13 @@ export function ProductDetail({ product }: { product: Product }) {
                   : 'cursor-not-allowed bg-ink-800 [color:#5a6b60]')
             }
           >
-            {added ? '✓ Додано в кошик' : size ? 'Додати в кошик' : 'Оберіть розмір'}
+            {added ? t.product.added : size ? t.product.addToCart : t.product.chooseSize}
           </button>
         </div>
 
         {added && (
-          <Link href="/cart" className="mt-3 inline-block text-sm font-semibold text-brand hover:underline">
-            Перейти до кошика →
+          <Link href={localeHref(locale, '/cart')} className="mt-3 inline-block text-sm font-semibold text-brand hover:underline">
+            {t.product.goToCart}
           </Link>
         )}
 
@@ -307,7 +305,7 @@ export function ProductDetail({ product }: { product: Product }) {
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M13 2L4.5 12.5a.5.5 0 00.4.8H11l-1 8.7 8.5-10.5a.5.5 0 00-.4-.8H12l1-8.7z" />
           </svg>
-          Швидке замовлення в 1 клік
+          {t.product.quickOrder}
         </button>
 
         {/* Микротекст: наличие + отправка */}
@@ -316,7 +314,7 @@ export function ProductDetail({ product }: { product: Product }) {
             <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clipRule="evenodd" />
             </svg>
-            {size ? `Розмір ${size} в наявності` : 'В наявності'}
+            {size ? t.product.sizeInStock.replace('{s}', size) : t.product.inStock}
           </p>
           <p className="flex items-center gap-2 [color:#9fb3a6]">
             <svg className="h-4 w-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -337,11 +335,9 @@ export function ProductDetail({ product }: { product: Product }) {
         {product.sizeGrid.length > 0 && (
           <div className="mt-6">
             <h2 className="mb-1 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">
-              Розмірна сітка
+              {t.product.sizeChart}
             </h2>
-            <p className="mb-2 text-xs [color:#7d8f83]">
-              Натисніть на розмір вище або на рядок сітки — потрібний розмір виділиться.
-            </p>
+            <p className="mb-2 text-xs [color:#7d8f83]">{t.product.sizeChartHint}</p>
             <div className="overflow-x-auto rounded-xl border border-ink-800">
               <table className="w-full text-left text-xs sm:text-sm">
                 <tbody>
@@ -456,26 +452,22 @@ export function ProductDetail({ product }: { product: Product }) {
                   <path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clipRule="evenodd" />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold [color:#e7efe9]">Дякуємо за замовлення!</h3>
-              <p className="mt-2 text-sm [color:#9fb3a6]">
-                Ми зателефонуємо найближчим часом, щоб підтвердити розмір і доставку.
-              </p>
+              <h3 className="text-lg font-bold [color:#e7efe9]">{t.quick.thanksTitle}</h3>
+              <p className="mt-2 text-sm [color:#9fb3a6]">{t.quick.thanksText}</p>
               <button
                 onClick={() => setQuickOpen(false)}
                 className="mt-5 w-full rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
               >
-                Зрозуміло
+                {t.quick.ok}
               </button>
             </div>
           ) : (
             <form onSubmit={submitQuick}>
-              <h3 className="text-lg font-bold [color:#e7efe9]">Швидке замовлення</h3>
-              <p className="mt-1 text-sm [color:#9fb3a6]">
-                Залиште номер — ми передзвонимо й оформимо замовлення за вас.
-              </p>
+              <h3 className="text-lg font-bold [color:#e7efe9]">{t.quick.title}</h3>
+              <p className="mt-1 text-sm [color:#9fb3a6]">{t.quick.subtitle}</p>
               <p className="mt-3 truncate text-sm font-semibold [color:#c3d3c8]">
                 {product.name}
-                {size && <span className="text-brand"> · розмір {size}</span>}
+                {size && <span className="text-brand"> · {t.product.size.toLowerCase()} {size}</span>}
               </p>
 
               <input
@@ -484,7 +476,7 @@ export function ProductDetail({ product }: { product: Product }) {
                 autoFocus
                 value={quickPhone}
                 onChange={(e) => setQuickPhone(e.target.value)}
-                placeholder="+38 (0__) ___-__-__"
+                placeholder={t.quick.phonePlaceholder}
                 className="mt-4 w-full rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm [color:#e7efe9] outline-none placeholder:[color:#6b7d71] focus:border-brand/60 focus:ring-1 focus:ring-brand/40"
               />
               {quickError && <p className="mt-2 text-sm text-red-400">{quickError}</p>}
@@ -494,11 +486,9 @@ export function ProductDetail({ product }: { product: Product }) {
                 disabled={quickState === 'sending'}
                 className="mt-4 w-full rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400 disabled:opacity-60"
               >
-                {quickState === 'sending' ? 'Надсилаємо…' : 'Замовити дзвінок'}
+                {quickState === 'sending' ? t.quick.sending : t.quick.submit}
               </button>
-              <p className="mt-3 text-center text-xs [color:#6b7d71]">
-                Натискаючи кнопку, ви погоджуєтесь, що з вами звʼяжеться менеджер.
-              </p>
+              <p className="mt-3 text-center text-xs [color:#6b7d71]">{t.quick.agree}</p>
             </form>
           )}
         </div>

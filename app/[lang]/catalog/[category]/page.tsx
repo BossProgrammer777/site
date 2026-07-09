@@ -7,7 +7,8 @@ import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
 import { getCategorySeo, categoryLandingSlugs, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
 import { siteUrl } from '@/lib/site';
-import { altMeta, Locale } from '@/lib/i18n';
+import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { dict } from '@/lib/dictionaries';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,16 +33,18 @@ export async function generateMetadata({
   };
 }
 
-export default async function CategoryPage({ params }: { params: { category: string } }) {
+export default async function CategoryPage({ params }: { params: { lang: Locale; category: string } }) {
   const seo = getCategorySeo(params.category);
   if (!seo) notFound();
 
   const catalog = await getCatalog();
   const base = siteUrl();
+  const bc = dict[params.lang].breadcrumb;
+  const lh = (p: string) => localeHref(params.lang, p);
   const crumbs = breadcrumbJsonLd([
-    { name: 'Головна', url: `${base}/` },
-    { name: 'Каталог', url: `${base}/catalog` },
-    { name: seo.h1, url: `${base}/catalog/${seo.slug}` },
+    { name: bc.home, url: `${base}${lh('/')}` },
+    { name: bc.catalog, url: `${base}${lh('/catalog')}` },
+    { name: seo.h1, url: `${base}${lh(`/catalog/${seo.slug}`)}` },
   ]);
 
   return (
@@ -49,12 +52,12 @@ export default async function CategoryPage({ params }: { params: { category: str
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
         <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-sm [color:#7d8f83]">
-          <Link href="/" className="hover:text-brand">
-            Головна
+          <Link href={lh('/')} className="hover:text-brand">
+            {bc.home}
           </Link>
           <span>/</span>
-          <Link href="/catalog" className="hover:text-brand">
-            Каталог
+          <Link href={lh('/catalog')} className="hover:text-brand">
+            {bc.catalog}
           </Link>
           <span>/</span>
           <span className="[color:#c3d3c8]">{seo.h1}</span>

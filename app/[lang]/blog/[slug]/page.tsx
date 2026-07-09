@@ -11,7 +11,8 @@ import {
   faqJsonLd,
   jsonLdScript,
 } from '@/lib/seo';
-import { altMeta, Locale } from '@/lib/i18n';
+import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { dict } from '@/lib/dictionaries';
 
 export function generateStaticParams() {
   return allArticleSlugs().map((slug) => ({ slug }));
@@ -34,15 +35,17 @@ export async function generateMetadata({
   };
 }
 
-export default function ArticlePage({ params }: { params: { slug: string } }) {
+export default function ArticlePage({ params }: { params: { lang: Locale; slug: string } }) {
   const a = getArticle(params.slug);
   if (!a) notFound();
 
   const base = siteUrl();
-  const url = `${base}/blog/${a.slug}`;
+  const bc = dict[params.lang].breadcrumb;
+  const lh = (p: string) => localeHref(params.lang, p);
+  const url = `${base}${lh(`/blog/${a.slug}`)}`;
   const crumbs = breadcrumbJsonLd([
-    { name: 'Головна', url: `${base}/` },
-    { name: 'Блог', url: `${base}/blog` },
+    { name: bc.home, url: `${base}${lh('/')}` },
+    { name: bc.blog, url: `${base}${lh('/blog')}` },
     { name: a.title, url },
   ]);
 
@@ -51,12 +54,12 @@ export default function ArticlePage({ params }: { params: { slug: string } }) {
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-4 pb-12 pt-8">
         <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-sm [color:#7d8f83]">
-          <Link href="/" className="hover:text-brand">
-            Головна
+          <Link href={lh('/')} className="hover:text-brand">
+            {bc.home}
           </Link>
           <span>/</span>
-          <Link href="/blog" className="hover:text-brand">
-            Блог
+          <Link href={lh('/blog')} className="hover:text-brand">
+            {bc.blog}
           </Link>
           <span>/</span>
           <span className="[color:#c3d3c8] line-clamp-1">{a.title}</span>
@@ -91,7 +94,7 @@ export default function ArticlePage({ params }: { params: { slug: string } }) {
         <div className="mt-10 rounded-2xl border border-ink-800 bg-ink-900/50 p-5">
           <p className="text-sm [color:#c3d3c8]">
             Готові обрати? Перегляньте{' '}
-            <Link href="/catalog" className="font-semibold text-brand hover:underline">
+            <Link href={lh('/catalog')} className="font-semibold text-brand hover:underline">
               каталог футбольного взуття та екіпіровки
             </Link>{' '}
             — розміри й ціни оновлюються автоматично.

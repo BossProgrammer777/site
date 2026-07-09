@@ -31,6 +31,7 @@ export interface Dict {
     agree: string; thanksTitle: string; thanksText: string; ok: string; badPhone: string;
   };
   breadcrumb: { home: string; catalog: string; blog: string };
+  blogList: { subtitle: string; read: string };
 }
 
 const uk: Dict = {
@@ -68,6 +69,7 @@ const uk: Dict = {
     ok: 'Зрозуміло', badPhone: 'Вкажіть коректний номер телефону',
   },
   breadcrumb: { home: 'Головна', catalog: 'Каталог', blog: 'Блог' },
+  blogList: { subtitle: 'Поради щодо вибору футбольного взуття та екіпіровки — для гравців, аматорів і батьків юних футболістів.', read: 'Читати →' },
 };
 
 const ru: Dict = {
@@ -105,6 +107,7 @@ const ru: Dict = {
     ok: 'Понятно', badPhone: 'Укажите корректный номер телефона',
   },
   breadcrumb: { home: 'Главная', catalog: 'Каталог', blog: 'Блог' },
+  blogList: { subtitle: 'Советы по выбору футбольной обуви и экипировки — для игроков, любителей и родителей юных футболистов.', read: 'Читать →' },
 };
 
 export const dict: Record<Locale, Dict> = { uk, ru };

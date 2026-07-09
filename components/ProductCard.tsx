@@ -5,6 +5,8 @@ import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
 import { FavoriteButton } from './favorites/FavoriteButton';
+import { useLocale, useT } from './LocaleProvider';
+import { localeHref } from '@/lib/i18n';
 
 const PLACEHOLDER = '/placeholder.svg';
 
@@ -17,6 +19,9 @@ function imageSrc(image: string | null): string {
 
 export function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
+  const t = useT();
+  const locale = useLocale();
+  const productHref = localeHref(locale, `/product/${encodeURIComponent(product.slug)}`);
   const [imgSrc, setImgSrc] = useState(imageSrc(product.image));
   const [gridOpen, setGridOpen] = useState(false);
   const inStockSizes = product.sizes.filter((s) => s.inStock);
@@ -42,7 +47,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-900/70 transition hover:border-brand/50 hover:shadow-glow">
-      <Link href={`/product/${encodeURIComponent(product.slug)}`} className="relative block aspect-[4/3] overflow-hidden bg-ink-800">
+      <Link href={productHref} className="relative block aspect-[4/3] overflow-hidden bg-ink-800">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
@@ -64,12 +69,12 @@ export function ProductCard({ product }: { product: Product }) {
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div>
-          <Link href={`/product/${encodeURIComponent(product.slug)}`}>
+          <Link href={productHref}>
             <h3 className="line-clamp-2 text-sm font-semibold leading-snug [color:#e7efe9] transition hover:text-brand">
               {product.name}
             </h3>
           </Link>
-          {product.code && <p className="mt-1 text-xs [color:#7d8f83]">Код: {product.code}</p>}
+          {product.code && <p className="mt-1 text-xs [color:#7d8f83]">{t.product.code}: {product.code}</p>}
         </div>
 
         <div className="text-lg font-extrabold text-brand">{formatUAH(product.finalPrice)}</div>
@@ -114,7 +119,7 @@ export function ProductCard({ product }: { product: Product }) {
                 : 'cursor-not-allowed bg-ink-800 [color:#5a6b60]')
           }
         >
-          {added ? '✓ Додано в кошик' : size ? 'Додати в кошик' : 'Оберіть розмір'}
+          {added ? t.product.added : size ? t.product.addToCart : t.product.chooseSize}
         </button>
 
         {product.notes && <p className="text-xs [color:#9fb3a6]">{product.notes}</p>}
@@ -128,7 +133,7 @@ export function ProductCard({ product }: { product: Product }) {
               aria-expanded={gridOpen}
               className="flex w-full items-center justify-between rounded-lg bg-ink-800 px-3 py-2 text-xs font-medium [color:#c3d3c8] transition hover:bg-ink-700"
             >
-              <span>Розмірна сітка (EU / UK / US / см)</span>
+              <span>{t.product.sizeChart} (EU / UK / US / см)</span>
               <svg
                 className={'h-3.5 w-3.5 transition ' + (gridOpen ? 'rotate-180' : '')}
                 viewBox="0 0 20 20"

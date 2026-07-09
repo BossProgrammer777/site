@@ -8,7 +8,8 @@ import { CatalogBrowser } from '@/components/CatalogBrowser';
 import { getCategorySeo, brandCategorySeo, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
 import { brandFromSlug, detectBrand } from '@/lib/brand';
 import { siteUrl } from '@/lib/site';
-import { altMeta, Locale } from '@/lib/i18n';
+import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { dict } from '@/lib/dictionaries';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,7 @@ export async function generateMetadata({
 export default async function BrandCategoryPage({
   params,
 }: {
-  params: { category: string; brand: string };
+  params: { lang: Locale; category: string; brand: string };
 }) {
   const cat = getCategorySeo(params.category);
   const brand = brandFromSlug(params.brand);
@@ -53,11 +54,13 @@ export default async function BrandCategoryPage({
   const seo = brandCategorySeo(cat, brand);
   const catalog = await getCatalog();
   const base = siteUrl();
+  const bc = dict[params.lang].breadcrumb;
+  const lh = (p: string) => localeHref(params.lang, p);
   const crumbs = breadcrumbJsonLd([
-    { name: 'Головна', url: `${base}/` },
-    { name: 'Каталог', url: `${base}/catalog` },
-    { name: cat.h1, url: `${base}/catalog/${cat.slug}` },
-    { name: brand, url: `${base}/catalog/${cat.slug}/${params.brand}` },
+    { name: bc.home, url: `${base}${lh('/')}` },
+    { name: bc.catalog, url: `${base}${lh('/catalog')}` },
+    { name: cat.h1, url: `${base}${lh(`/catalog/${cat.slug}`)}` },
+    { name: brand, url: `${base}${lh(`/catalog/${cat.slug}/${params.brand}`)}` },
   ]);
 
   return (
@@ -65,15 +68,15 @@ export default async function BrandCategoryPage({
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
         <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-sm [color:#7d8f83]">
-          <Link href="/" className="hover:text-brand">
-            Головна
+          <Link href={lh('/')} className="hover:text-brand">
+            {bc.home}
           </Link>
           <span>/</span>
-          <Link href="/catalog" className="hover:text-brand">
-            Каталог
+          <Link href={lh('/catalog')} className="hover:text-brand">
+            {bc.catalog}
           </Link>
           <span>/</span>
-          <Link href={`/catalog/${cat.slug}`} className="hover:text-brand">
+          <Link href={lh(`/catalog/${cat.slug}`)} className="hover:text-brand">
             {cat.h1}
           </Link>
           <span>/</span>

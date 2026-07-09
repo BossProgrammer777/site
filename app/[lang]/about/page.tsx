@@ -6,7 +6,8 @@ import { Socials } from '@/components/Socials';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { siteUrl } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
-import { altMeta, Locale } from '@/lib/i18n';
+import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { dict } from '@/lib/dictionaries';
 
 const YOUTUBE_CHANNEL = 'https://youtube.com/@bootsbaza9099';
 const YOUTUBE_SEARCH = 'https://www.youtube.com/results?search_query=bootsbaza';
@@ -27,11 +28,14 @@ export function generateMetadata({ params }: { params: { lang: Locale } }): Meta
   };
 }
 
-export default function AboutPage() {
+export default function AboutPage({ params }: { params: { lang: Locale } }) {
   const base = siteUrl();
+  const bc = dict[params.lang].breadcrumb;
+  const lh = (p: string) => localeHref(params.lang, p);
+  const aboutLabel = dict[params.lang].nav.about;
   const crumbs = breadcrumbJsonLd([
-    { name: 'Головна', url: `${base}/` },
-    { name: 'Про нас', url: `${base}/about` },
+    { name: bc.home, url: `${base}${lh('/')}` },
+    { name: aboutLabel, url: `${base}${lh('/about')}` },
   ]);
 
   return (
@@ -39,11 +43,11 @@ export default function AboutPage() {
       <SiteHeader />
       <main className="mx-auto max-w-5xl px-4 pb-16 pt-6">
         <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-sm [color:#7d8f83]">
-          <Link href="/" className="hover:text-brand">
-            Головна
+          <Link href={lh('/')} className="hover:text-brand">
+            {bc.home}
           </Link>
           <span>/</span>
-          <span className="[color:#c3d3c8]">Про нас</span>
+          <span className="[color:#c3d3c8]">{aboutLabel}</span>
         </nav>
 
         {/* Герой */}
@@ -161,7 +165,7 @@ export default function AboutPage() {
             <Socials className="mt-4" />
           </div>
           <Link
-            href="/catalog"
+            href={lh('/catalog')}
             className="rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
           >
             Перейти до каталогу
