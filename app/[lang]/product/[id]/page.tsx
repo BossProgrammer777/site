@@ -11,6 +11,8 @@ import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@
 import { detectBrand } from '@/lib/brand';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { dict } from '@/lib/dictionaries';
+import { localizeProductName } from '@/lib/productL10n';
+import { productKeywords } from '@/lib/productKeywords';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,23 +23,35 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const key = decodeURIComponent(params.id);
   const catalog = await getCatalog();
-  const product = catalog.sections
-    .flatMap((s) => s.products)
-    .find((p) => p.slug === key || p.id === key);
+  let product = null as (typeof catalog.sections)[number]['products'][number] | null;
+  let sectionSlug = '';
+  for (const s of catalog.sections) {
+    const p = s.products.find((x) => x.slug === key || x.id === key);
+    if (p) {
+      product = p;
+      sectionSlug = s.slug;
+      break;
+    }
+  }
   if (!product) return { title: 'Товар не знайдено' };
 
-  const description = `${product.name} — ${formatUAH(product.finalPrice)}. Розміри в наявності, розмірна сітка, доставка Новою Поштою.`;
+  const name = localizeProductName(product.name, params.lang);
+  const description =
+    params.lang === 'ru'
+      ? `${name} — ${formatUAH(product.finalPrice)}. Размеры в наличии, размерная сетка, доставка Новой Почтой.`
+      : `${name} — ${formatUAH(product.finalPrice)}. Розміри в наявності, розмірна сітка, доставка Новою Поштою.`;
   return {
-    title: product.name,
+    title: name,
     description,
+    keywords: productKeywords(product, sectionSlug, params.lang),
     alternates: altMeta(params.lang, `/product/${encodeURIComponent(product.slug)}`),
     openGraph: {
-      title: product.name,
+      title: name,
       description,
       type: 'website',
       images: [product.image || '/logo.svg'],
     },
-    twitter: { card: 'summary_large_image', title: product.name, description },
+    twitter: { card: 'summary_large_image', title: name, description },
   };
 }
 
