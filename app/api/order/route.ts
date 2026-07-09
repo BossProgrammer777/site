@@ -18,6 +18,7 @@ interface OrderItem {
 interface OrderBody {
   customer?: { name?: string; phone?: string };
   delivery?: { city?: string; warehouse?: string };
+  payment?: string;
   comment?: string;
   items?: OrderItem[];
 }
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
   const phone = body.customer?.phone?.trim();
   const city = body.delivery?.city?.trim();
   const warehouse = body.delivery?.warehouse?.trim();
+  const payment = body.payment?.trim();
   const items = Array.isArray(body.items) ? body.items : [];
 
   if (!name || !phone) return NextResponse.json({ ok: false, error: 'Вкажіть ім’я та телефон' }, { status: 400 });
@@ -86,12 +88,16 @@ export async function POST(req: NextRequest) {
     `📞 <b>Телефон:</b> ${esc(phone)}\n` +
     `🏙 <b>Місто:</b> ${esc(city)}\n` +
     `📦 <b>Відділення НП:</b> ${esc(warehouse)}` +
+    (payment ? `\n💳 <b>Оплата:</b> ${esc(payment)}` : '') +
     (body.comment?.trim() ? `\n📝 <b>Коментар:</b> ${esc(body.comment.trim())}` : '');
 
   // Дублируем в Google-таблицу (если настроено) — не блокируя основной ответ.
   const itemsSummary = lines
     .map((l) => `${l.name} (${l.code}), р.${l.size} ×${l.qty}`)
     .join('; ');
+  const sheetComment = [payment ? `Оплата: ${payment}` : '', body.comment?.trim() || '']
+    .filter(Boolean)
+    .join(' · ');
   const sheetPromise = appendOrderToSheet({
     name,
     phone,
@@ -99,7 +105,7 @@ export async function POST(req: NextRequest) {
     warehouse,
     itemsSummary,
     total,
-    comment: body.comment?.trim() || '',
+    comment: sheetComment,
   }).catch(() => ({ saved: false }));
 
   // Фото товаров для Telegram (абсолютные URL).

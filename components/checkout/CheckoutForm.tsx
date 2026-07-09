@@ -25,6 +25,15 @@ export function CheckoutForm() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [comment, setComment] = useState('');
+  const [payment, setPayment] = useState<'cod' | 'prepay'>('cod');
+  const paymentLabel =
+    payment === 'cod'
+      ? locale === 'ru'
+        ? 'Наложенный платёж'
+        : 'Накладений платіж'
+      : locale === 'ru'
+        ? 'Предоплата на счёт'
+        : 'Передоплата на рахунок';
 
   // Nova Poshta
   const [manual, setManual] = useState(false); // если API не настроен
@@ -102,6 +111,7 @@ export function CheckoutForm() {
         body: JSON.stringify({
           customer: { name, phone },
           delivery: { city: cityQuery, warehouse },
+          payment: paymentLabel,
           comment,
           items: items.map((i) => ({
             productId: i.productId,
@@ -237,6 +247,37 @@ export function CheckoutForm() {
           )}
         </Field>
 
+        <Field label={t.checkout.payment}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ['cod', t.checkout.payCod],
+                ['prepay', t.checkout.payPrepay],
+              ] as const
+            ).map(([val, label]) => (
+              <label
+                key={val}
+                className={
+                  'flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition ' +
+                  (payment === val
+                    ? 'border-brand bg-brand/10 [color:#e7efe9]'
+                    : 'border-ink-700 bg-ink-900 [color:#c3d3c8] hover:border-brand/40')
+                }
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value={val}
+                  checked={payment === val}
+                  onChange={() => setPayment(val)}
+                  className="h-4 w-4 shrink-0 accent-brand"
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </Field>
+
         <Field label={t.checkout.comment}>
           <textarea
             className={inputCls}
@@ -278,6 +319,15 @@ export function CheckoutForm() {
           <span className="text-sm [color:#c3d3c8]">{t.cart.total}</span>
           <span className="text-xl font-extrabold text-brand">{formatUAH(total)}</span>
         </div>
+        <p className="mt-2 flex items-start gap-1.5 text-xs [color:#7d8f83]">
+          <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1" y="6" width="13" height="10" rx="1" />
+            <path d="M14 9h4l3 3v4h-7z" />
+            <circle cx="6" cy="18" r="1.6" />
+            <circle cx="18" cy="18" r="1.6" />
+          </svg>
+          {t.checkout.deliveryNote}
+        </p>
       </aside>
     </div>
   );
