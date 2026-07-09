@@ -7,6 +7,7 @@ import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
 import { getCategorySeo, categoryLandingSlugs, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
 import { siteUrl } from '@/lib/site';
+import { altMeta, Locale } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,17 +18,17 @@ export function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { category: string };
+  params: { lang: Locale; category: string };
 }): Promise<Metadata> {
   const seo = getCategorySeo(params.category);
   if (!seo) return { title: 'Категорію не знайдено' };
-  const url = `${siteUrl()}/catalog/${seo.slug}`;
+  const alt = altMeta(params.lang, `/catalog/${seo.slug}`);
   return {
     title: { absolute: seo.title },
     description: seo.description,
     keywords: seo.keywords,
-    alternates: { canonical: url },
-    openGraph: { title: seo.title, description: seo.description, url, type: 'website' },
+    alternates: alt,
+    openGraph: { title: seo.title, description: seo.description, url: alt.canonical, type: 'website' },
   };
 }
 

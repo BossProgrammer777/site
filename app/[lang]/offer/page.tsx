@@ -1,7 +1,11 @@
+import type { Metadata } from 'next';
 import { InfoPage } from '@/components/InfoPage';
 import { PHONES, INSTAGRAM } from '@/lib/contacts';
+import { altMeta, Locale } from '@/lib/i18n';
 
-export const metadata = { title: 'Договір публічної оферти — Bootsbaza' };
+export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  return { title: 'Договір публічної оферти — Bootsbaza', alternates: altMeta(params.lang, '/offer') };
+}
 
 export default function OfferPage() {
   return (

@@ -1,6 +1,10 @@
+import type { Metadata } from 'next';
 import { InfoPage } from '@/components/InfoPage';
+import { altMeta, Locale } from '@/lib/i18n';
 
-export const metadata = { title: 'Гарантія та повернення — Bootsbaza' };
+export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  return { title: 'Гарантія та повернення — Bootsbaza', alternates: altMeta(params.lang, '/warranty') };
+}
 
 export default function WarrantyPage() {
   return (

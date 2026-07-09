@@ -1,11 +1,16 @@
+import type { Metadata } from 'next';
 import { InfoPage } from '@/components/InfoPage';
 import { faqJsonLd, jsonLdScript } from '@/lib/seo';
+import { altMeta, Locale } from '@/lib/i18n';
 
-export const metadata = {
-  title: { absolute: 'Доставка та оплата — Нова Пошта по Україні | Bootsbaza' },
-  description:
-    'Доставка футбольного взуття та екіпіровки по всій Україні «Новою Поштою»: Київ, Львів, Харків, Дніпро, Одеса. Оплата при отриманні або передоплата.',
-};
+export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  return {
+    title: { absolute: 'Доставка та оплата — Нова Пошта по Україні | Bootsbaza' },
+    description:
+      'Доставка футбольного взуття та екіпіровки по всій Україні «Новою Поштою»: Київ, Львів, Харків, Дніпро, Одеса. Оплата при отриманні або передоплата.',
+    alternates: altMeta(params.lang, '/delivery'),
+  };
+}
 
 const FAQ = [
   {

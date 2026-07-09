@@ -1,8 +1,12 @@
+import type { Metadata } from 'next';
 import { InfoPage } from '@/components/InfoPage';
 import { Socials } from '@/components/Socials';
 import { PHONES, SOCIALS } from '@/lib/contacts';
+import { altMeta, Locale } from '@/lib/i18n';
 
-export const metadata = { title: 'Контакти — Bootsbaza' };
+export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  return { title: 'Контакти — Bootsbaza', alternates: altMeta(params.lang, '/contacts') };
+}
 
 export default function ContactsPage() {
   return (

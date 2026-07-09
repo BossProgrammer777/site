@@ -6,6 +6,7 @@ import { Socials } from '@/components/Socials';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { siteUrl } from '@/lib/site';
 import { breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
+import { altMeta, Locale } from '@/lib/i18n';
 
 const YOUTUBE_CHANNEL = 'https://youtube.com/@bootsbaza9099';
 const YOUTUBE_SEARCH = 'https://www.youtube.com/results?search_query=bootsbaza';
@@ -17,12 +18,14 @@ const MATCH_VIDEOS = [
   { id: 'mO7KhIGPzD8', title: 'Матч команди Bootsbaza' },
 ];
 
-export const metadata: Metadata = {
-  title: { absolute: 'Про нас — магазин футбольної екіпіровки з 2018 | Bootsbaza' },
-  description:
-    'Bootsbaza — інтернет-магазин футбольного взуття та екіпіровки з 2018 року. Маємо власну команду, що грає на турнірах Харкова. Ми самі граємо — тож знаємося на взутті.',
-  alternates: { canonical: `${siteUrl()}/about` },
-};
+export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  return {
+    title: { absolute: 'Про нас — магазин футбольної екіпіровки з 2018 | Bootsbaza' },
+    description:
+      'Bootsbaza — інтернет-магазин футбольного взуття та екіпіровки з 2018 року. Маємо власну команду, що грає на турнірах Харкова. Ми самі граємо — тож знаємося на взутті.',
+    alternates: altMeta(params.lang, '/about'),
+  };
+}
 
 export default function AboutPage() {
   const base = siteUrl();

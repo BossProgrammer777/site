@@ -8,6 +8,7 @@ import { CatalogBrowser } from '@/components/CatalogBrowser';
 import { getCategorySeo, brandCategorySeo, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
 import { brandFromSlug, detectBrand } from '@/lib/brand';
 import { siteUrl } from '@/lib/site';
+import { altMeta, Locale } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,18 +25,18 @@ async function brandHasProducts(sectionSlug: string, brand: string): Promise<boo
 export async function generateMetadata({
   params,
 }: {
-  params: { category: string; brand: string };
+  params: { lang: Locale; category: string; brand: string };
 }): Promise<Metadata> {
   const cat = getCategorySeo(params.category);
   const brand = brandFromSlug(params.brand);
   if (!cat || !brand) return { title: 'Сторінку не знайдено' };
   const seo = brandCategorySeo(cat, brand);
-  const url = `${siteUrl()}/catalog/${cat.slug}/${params.brand}`;
+  const alt = altMeta(params.lang, `/catalog/${cat.slug}/${params.brand}`);
   return {
     title: { absolute: seo.title },
     description: seo.description,
-    alternates: { canonical: url },
-    openGraph: { title: seo.title, description: seo.description, url, type: 'website' },
+    alternates: alt,
+    openGraph: { title: seo.title, description: seo.description, url: alt.canonical, type: 'website' },
   };
 }
 

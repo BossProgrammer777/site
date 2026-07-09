@@ -11,6 +11,7 @@ import {
   faqJsonLd,
   jsonLdScript,
 } from '@/lib/seo';
+import { altMeta, Locale } from '@/lib/i18n';
 
 export function generateStaticParams() {
   return allArticleSlugs().map((slug) => ({ slug }));
@@ -19,17 +20,17 @@ export function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: { lang: Locale; slug: string };
 }): Promise<Metadata> {
   const a = getArticle(params.slug);
   if (!a) return { title: 'Статтю не знайдено' };
-  const url = `${siteUrl()}/blog/${a.slug}`;
+  const alt = altMeta(params.lang, `/blog/${a.slug}`);
   return {
     title: { absolute: a.metaTitle },
     description: a.description,
     keywords: a.keywords,
-    alternates: { canonical: url },
-    openGraph: { title: a.metaTitle, description: a.description, url, type: 'article' },
+    alternates: alt,
+    openGraph: { title: a.metaTitle, description: a.description, url: alt.canonical, type: 'article' },
   };
 }
 

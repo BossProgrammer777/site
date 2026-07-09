@@ -1,11 +1,17 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { HomeBanner } from '@/components/HomeBanner';
 import { getCategorySeo } from '@/lib/seo';
+import { altMeta, Locale } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
+
+export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  return { alternates: altMeta(params.lang, '/') };
+}
 
 // Ссылка на раздел: ЧПУ-посадочная, если она есть, иначе фильтр каталога.
 function sectionHref(slug: string): string {

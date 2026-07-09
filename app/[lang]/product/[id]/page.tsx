@@ -9,13 +9,14 @@ import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
 import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
 import { detectBrand } from '@/lib/brand';
+import { altMeta, Locale } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: { lang: Locale; id: string };
 }): Promise<Metadata> {
   const key = decodeURIComponent(params.id);
   const catalog = await getCatalog();
@@ -28,7 +29,7 @@ export async function generateMetadata({
   return {
     title: product.name,
     description,
-    alternates: { canonical: `${siteUrl()}/product/${encodeURIComponent(product.slug)}` },
+    alternates: altMeta(params.lang, `/product/${encodeURIComponent(product.slug)}`),
     openGraph: {
       title: product.name,
       description,

@@ -3,14 +3,16 @@ import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { BLOG } from '@/lib/blog';
-import { siteUrl } from '@/lib/site';
+import { altMeta, Locale } from '@/lib/i18n';
 
-export const metadata: Metadata = {
-  title: { absolute: 'Блог про футбольне взуття та екіпіровку | Bootsbaza' },
-  description:
-    'Корисні статті про вибір футбольного взуття: як обрати бутси дитині, різниця між бутсами, сороконіжками й футзалками, розмірна сітка та поради.',
-  alternates: { canonical: `${siteUrl()}/blog` },
-};
+export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  return {
+    title: { absolute: 'Блог про футбольне взуття та екіпіровку | Bootsbaza' },
+    description:
+      'Корисні статті про вибір футбольного взуття: як обрати бутси дитині, різниця між бутсами, сороконіжками й футзалками, розмірна сітка та поради.',
+    alternates: altMeta(params.lang, '/blog'),
+  };
+}
 
 function formatDate(iso: string): string {
   try {
