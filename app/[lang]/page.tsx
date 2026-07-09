@@ -5,7 +5,8 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { HomeBanner } from '@/components/HomeBanner';
 import { getCategorySeo } from '@/lib/seo';
-import { altMeta, Locale } from '@/lib/i18n';
+import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { dict } from '@/lib/dictionaries';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,9 +25,11 @@ function tileImage(image: string | null): string {
   return '/placeholder.svg';
 }
 
-export default async function HomePage() {
+export default async function HomePage({ params }: { params: { lang: Locale } }) {
   const catalog = await getCatalog();
   const totalProducts = catalog.sections.reduce((n, s) => n + s.products.length, 0);
+  const tr = dict[params.lang].home;
+  const href = (p: string) => localeHref(params.lang, p);
 
   // Для плитки берём фото первого товара раздела как фон.
   const tiles = catalog.sections
@@ -47,37 +50,35 @@ export default async function HomePage() {
         {/* Герой */}
         <section className="py-8 sm:py-12">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-brand">
-            Футбольний магазин
+            {tr.badge}
           </p>
           <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
-            Бутси, сороконіжки, футзалки та екіпіровка —{' '}
-            <span className="text-brand">завжди в наявності</span>
+            {tr.heroA} <span className="text-brand">{tr.heroB}</span>
           </h1>
           <p className="mt-4 max-w-xl text-sm text-ink-600 [color:#9fb3a6] sm:text-base">
-            Великий вибір футбольного взуття та екіпіровки — брендові моделі та бюджетні варіанти
-            без бренду. Розміри, розмірна сітка та ціни оновлюються автоматично.
+            {tr.heroSub}
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link
-              href="/catalog"
+              href={href('/catalog')}
               className="rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400"
             >
-              Перейти до каталогу
+              {tr.toCatalog}
             </Link>
             <span className="text-sm text-ink-600 [color:#7d8f83]">
-              {totalProducts} товарів у наявності
+              {totalProducts} {tr.inStockCount}
             </span>
           </div>
         </section>
 
         {/* Плитки-разделы */}
         <section>
-          <h2 className="mb-5 text-xl font-bold sm:text-2xl">Категорії</h2>
+          <h2 className="mb-5 text-xl font-bold sm:text-2xl">{tr.categories}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {tiles.map((t) => (
               <Link
                 key={t.slug}
-                href={sectionHref(t.slug)}
+                href={href(sectionHref(t.slug))}
                 className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 sm:aspect-[4/3]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -100,7 +101,7 @@ export default async function HomePage() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs font-medium text-ink-600 [color:#c3d3c8]">
-                    {t.count} товарів
+                    {t.count} {tr.itemsShort}
                   </p>
                 </div>
               </Link>

@@ -6,7 +6,8 @@ import { FavoritesProvider } from '@/components/favorites/FavoritesContext';
 import { Analytics } from '@/components/Analytics';
 import { siteUrl, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { organizationJsonLd, websiteJsonLd, jsonLdScript } from '@/lib/seo';
-import { LOCALES, isLocale } from '@/lib/i18n';
+import { LOCALES, isLocale, type Locale } from '@/lib/i18n';
+import { LocaleProvider } from '@/components/LocaleProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -53,9 +54,11 @@ export default function RootLayout({
   return (
     <html lang={params.lang}>
       <body className="min-h-screen antialiased">
-        <FavoritesProvider>
-          <CartProvider>{children}</CartProvider>
-        </FavoritesProvider>
+        <LocaleProvider locale={params.lang as Locale}>
+          <FavoritesProvider>
+            <CartProvider>{children}</CartProvider>
+          </FavoritesProvider>
+        </LocaleProvider>
         <Analytics />
         <script
           type="application/ld+json"

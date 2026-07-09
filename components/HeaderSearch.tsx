@@ -1,10 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { productImageSrc, PLACEHOLDER } from '@/lib/img';
 import { formatUAH } from '@/lib/format';
+import { useLocale, useT } from './LocaleProvider';
+import { localeHref } from '@/lib/i18n';
 
 interface Suggestion {
   slug: string;
@@ -26,6 +27,8 @@ export function HeaderSearch({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1); // выбранная стрелками подсказка
   const router = useRouter();
+  const locale = useLocale();
+  const t = useT();
   const boxRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -69,14 +72,14 @@ export function HeaderSearch({
   }, []);
 
   const goToCatalog = (term: string) => {
-    const t = term.trim();
-    router.push(t ? `/catalog?q=${encodeURIComponent(t)}` : '/catalog');
+    const term2 = term.trim();
+    router.push(localeHref(locale, term2 ? `/catalog?q=${encodeURIComponent(term2)}` : '/catalog'));
     setOpen(false);
     onSubmitted?.();
   };
 
   const goToProduct = (s: Suggestion) => {
-    router.push(`/product/${encodeURIComponent(s.slug)}`);
+    router.push(localeHref(locale, `/product/${encodeURIComponent(s.slug)}`));
     setQ('');
     setItems([]);
     setOpen(false);
@@ -131,7 +134,7 @@ export function HeaderSearch({
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
-            placeholder="Пошук товарів…"
+            placeholder={t.search.placeholder}
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={showDropdown}
@@ -180,7 +183,7 @@ export function HeaderSearch({
             onClick={() => goToCatalog(q)}
             className="block w-full border-t border-ink-800 px-3 py-2.5 text-center text-sm font-semibold text-brand transition hover:bg-ink-900"
           >
-            Показати всі результати
+            {t.search.showAll}
           </button>
         </div>
       )}

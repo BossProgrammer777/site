@@ -1,13 +1,25 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
-import { INFO_LINKS, PHONES } from '@/lib/contacts';
+import { PHONES } from '@/lib/contacts';
 import { HeaderSearch } from './HeaderSearch';
+import { LocaleLink } from './LocaleLink';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useT } from './LocaleProvider';
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
+  const t = useT();
+
+  const links = [
+    { href: '/catalog', label: t.nav.catalog, primary: true },
+    { href: '/blog', label: t.nav.blog },
+    { href: '/about', label: t.nav.about },
+    { href: '/delivery', label: t.nav.delivery },
+    { href: '/warranty', label: t.nav.warranty },
+    { href: '/contacts', label: t.nav.contacts },
+  ];
 
   return (
     <div className="lg:hidden">
@@ -26,28 +38,28 @@ export function MobileMenu() {
         <div className="absolute left-0 right-0 top-full z-40 border-b border-ink-800 bg-ink-950 shadow-2xl">
           <nav className="mx-auto flex max-w-6xl flex-col px-4 py-2">
             <HeaderSearch className="py-3" onSubmitted={close} />
-            <Link href="/catalog" onClick={close} className="border-b border-ink-800 py-3 text-sm font-semibold [color:#e7efe9]">
-              Каталог
-            </Link>
-            <Link href="/blog" onClick={close} className="border-b border-ink-800 py-3 text-sm [color:#c3d3c8]">
-              Блог
-            </Link>
-            {INFO_LINKS.map((l) => (
-              <Link
+            {links.map((l) => (
+              <LocaleLink
                 key={l.href}
                 href={l.href}
                 onClick={close}
-                className="border-b border-ink-800 py-3 text-sm [color:#c3d3c8]"
+                className={
+                  'border-b border-ink-800 py-3 text-sm ' +
+                  (l.primary ? 'font-semibold [color:#e7efe9]' : '[color:#c3d3c8]')
+                }
               >
                 {l.label}
-              </Link>
+              </LocaleLink>
             ))}
-            <div className="flex flex-col gap-1 py-3">
-              {PHONES.map((p) => (
-                <a key={p.href} href={p.href} className="text-sm font-semibold text-brand">
-                  {p.display}
-                </a>
-              ))}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex flex-col gap-1">
+                {PHONES.map((p) => (
+                  <a key={p.href} href={p.href} className="text-sm font-semibold text-brand">
+                    {p.display}
+                  </a>
+                ))}
+              </div>
+              <LanguageSwitcher className="rounded-lg border border-ink-700 px-1" />
             </div>
           </nav>
         </div>

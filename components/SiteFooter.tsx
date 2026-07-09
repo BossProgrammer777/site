@@ -1,57 +1,66 @@
-import Link from 'next/link';
+'use client';
+
 import { Logo } from './Logo';
 import { Socials } from './Socials';
-import { PHONES, INFO_LINKS } from '@/lib/contacts';
+import { LocaleLink } from './LocaleLink';
+import { useT } from './LocaleProvider';
+import { PHONES } from '@/lib/contacts';
 
 export function SiteFooter() {
+  const t = useT();
+  const infoLinks = [
+    { href: '/about', label: t.nav.about },
+    { href: '/delivery', label: t.nav.delivery },
+    { href: '/warranty', label: t.nav.warranty },
+    { href: '/offer', label: t.nav.offer },
+    { href: '/contacts', label: t.nav.contacts },
+  ];
   return (
     <footer className="mt-16 border-t border-ink-800 bg-ink-950/60">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <Logo />
-          <p className="mt-3 max-w-xs text-sm [color:#7d8f83]">
-            Інтернет-магазин футбольного взуття та екіпіровки. Актуальна наявність і чесні ціни.
-          </p>
+          <p className="mt-3 max-w-xs text-sm [color:#7d8f83]">{t.footer.tagline}</p>
         </div>
 
         <div>
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">Магазин</h3>
+          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">{t.footer.shop}</h3>
           <ul className="space-y-2 text-sm [color:#9fb3a6]">
             <li>
-              <Link href="/catalog" className="transition hover:text-brand">
-                Каталог
-              </Link>
+              <LocaleLink href="/catalog" className="transition hover:text-brand">
+                {t.nav.catalog}
+              </LocaleLink>
             </li>
             <li>
-              <Link href="/blog" className="transition hover:text-brand">
-                Блог
-              </Link>
+              <LocaleLink href="/blog" className="transition hover:text-brand">
+                {t.footer.blog}
+              </LocaleLink>
             </li>
             <li>
-              <Link href="/cart" className="transition hover:text-brand">
-                Кошик
-              </Link>
+              <LocaleLink href="/cart" className="transition hover:text-brand">
+                {t.footer.cart}
+              </LocaleLink>
             </li>
           </ul>
         </div>
 
         <div>
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">
-            Інформація
+            {t.footer.info}
           </h3>
           <ul className="space-y-2 text-sm [color:#9fb3a6]">
-            {INFO_LINKS.map((l) => (
+            {infoLinks.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="transition hover:text-brand">
+                <LocaleLink href={l.href} className="transition hover:text-brand">
                   {l.label}
-                </Link>
+                </LocaleLink>
               </li>
             ))}
           </ul>
         </div>
 
         <div>
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">Контакти</h3>
+          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">{t.footer.contacts}</h3>
           <ul className="space-y-2 text-sm [color:#9fb3a6]">
             {PHONES.map((p) => (
               <li key={p.href}>
@@ -66,7 +75,7 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-ink-800 py-5 text-center text-xs [color:#6b7d71]">
-        © {new Date().getFullYear()} Bootsbaza — інтернет-магазин футбольної екіпіровки. Усі права захищені.
+        © {new Date().getFullYear()} Bootsbaza. {t.footer.rights}
       </div>
     </footer>
   );
