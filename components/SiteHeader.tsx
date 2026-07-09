@@ -17,10 +17,10 @@ export function SiteHeader() {
   const locale = useLocale();
   const links = [
     { href: '/catalog', label: t.nav.catalog },
-    { href: '/blog', label: t.nav.blog },
-    { href: '/about', label: t.nav.about },
     { href: '/delivery', label: t.nav.delivery },
     { href: '/warranty', label: t.nav.warranty },
+    { href: '/about', label: t.nav.about },
+    { href: '/blog', label: t.nav.blog },
     { href: '/contacts', label: t.nav.contacts },
   ];
 
