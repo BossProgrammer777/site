@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
-import { BLOG } from '@/lib/blog';
+import { BLOG, getArticleCopy } from '@/lib/blog';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { dict } from '@/lib/dictionaries';
 
@@ -28,7 +28,9 @@ function formatDate(iso: string, locale: Locale): string {
 }
 
 export default function BlogPage({ params }: { params: { lang: Locale } }) {
-  const articles = [...BLOG].sort((a, b) => b.date.localeCompare(a.date));
+  const articles = BLOG.map((a) => getArticleCopy(a.slug, params.lang)!).sort((a, b) =>
+    b.date.localeCompare(a.date),
+  );
   const tr = dict[params.lang];
   const lh = (p: string) => localeHref(params.lang, p);
 

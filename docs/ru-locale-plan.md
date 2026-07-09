@@ -160,11 +160,11 @@
       категориях и брендах — в проде.
 - [x] Главная: названия плиток (`sectionLabel`), слайды баннера (`HomeBanner`).
 - [x] Инфостраницы delivery, warranty, contacts — RU (+ FAQ-разметка delivery).
+- [x] **Блог `lib/blog.ts` — 3 статьи на RU** (структура locale-keyed;
+      title/metaTitle/description/excerpt/keywords/html/faq для uk+ru;
+      ссылки в html префиксуются на /ru). В проде.
 - [ ] **Инфостраница `offer` (публичная оферта)** — RU (длинный юртекст; сейчас
       на /ru показывается UA — приемлемо, но не переведено).
-- [ ] **Блог `lib/blog.ts` — 3 статьи на RU** (сделать структуру locale-keyed:
-      title/description/excerpt/html/faq для uk+ru; перевести 3 статьи). Сейчас
-      на /ru статьи показываются на UA (graceful).
 
 ### ⏳ Фаза 4 — SEO-полировка (ОСТАЛОСЬ)
 - [ ] `sitemap.ts` — URL обеих локалей + `<xhtml:link alternates>`.
