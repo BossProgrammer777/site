@@ -105,6 +105,10 @@ export function organizationJsonLd() {
     name: SITE_NAME,
     url: base,
     logo: `${base}/logo.svg`,
+    foundingDate: '2018',
+    description:
+      'Інтернет-магазин футбольного взуття та екіпіровки з 2018 року. Маємо власну аматорську команду, що виступає на турнірах Харкова.',
+    areaServed: 'UA',
     contactPoint: PHONES.map((p) => ({
       '@type': 'ContactPoint',
       telephone: p.href.replace('tel:', ''),

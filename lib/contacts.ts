@@ -18,6 +18,7 @@ export const SOCIALS: { id: SocialId; name: string; handle: string; href: string
 
 // Ссылки на информационные разделы (для навигации/футера).
 export const INFO_LINKS = [
+  { href: '/about', label: 'Про нас' },
   { href: '/delivery', label: 'Доставка та оплата' },
   { href: '/warranty', label: 'Гарантія та повернення' },
   { href: '/offer', label: 'Договір оферти' },
