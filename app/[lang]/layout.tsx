@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import './globals.css';
+import { notFound } from 'next/navigation';
+import '../globals.css';
 import { CartProvider } from '@/components/cart/CartContext';
 import { FavoritesProvider } from '@/components/favorites/FavoritesContext';
 import { Analytics } from '@/components/Analytics';
 import { siteUrl, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { organizationJsonLd, websiteJsonLd, jsonLdScript } from '@/lib/seo';
+import { LOCALES, isLocale } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -35,9 +37,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export function generateStaticParams() {
+  return LOCALES.map((lang) => ({ lang }));
+}
+
+export default function RootLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: { lang: string };
+}) {
+  if (!isLocale(params.lang)) notFound();
+
   return (
-    <html lang="uk">
+    <html lang={params.lang}>
       <body className="min-h-screen antialiased">
         <FavoritesProvider>
           <CartProvider>{children}</CartProvider>
