@@ -166,11 +166,12 @@
 - [ ] **Инфостраница `offer` (публичная оферта)** — RU (длинный юртекст; сейчас
       на /ru показывается UA — приемлемо, но не переведено).
 
-### ⏳ Фаза 4 — SEO-полировка (ОСТАЛОСЬ)
-- [ ] `sitemap.ts` — URL обеих локалей + `<xhtml:link alternates>`.
-- [ ] OpenGraph `locale` + `alternateLocale` по локали.
-- [ ] `noindex` на `/cart`, `/checkout`, `/favorites` (обе локали).
-- [ ] Финальная сверка hreflang по всем типам страниц.
+### Фаза 4 — SEO-полировка (ПОЧТИ готово)
+- [x] `sitemap.ts` — URL обеих локалей + `<xhtml:link>` hreflang-alternates
+      (служебные /cart, /checkout, /favorites исключены).
+- [x] OpenGraph `locale` + `alternateLocale` по локали (layout generateMetadata).
+- [x] `noindex` на `/cart`, `/checkout`, `/favorites`.
+- [x] hreflang на всех индексируемых типах страниц (Фаза 1b + категории/блог).
 - [ ] (Опция) RU-синонимы в keywords карточки товара.
 
 ---

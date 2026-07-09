@@ -2,7 +2,7 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { FavoritesView } from '@/components/favorites/FavoritesView';
 
-export const metadata = { title: 'Обране' };
+export const metadata = { title: 'Обране', robots: { index: false, follow: true } };
 
 export default function FavoritesPage() {
   return (

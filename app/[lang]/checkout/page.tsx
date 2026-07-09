@@ -2,7 +2,7 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CheckoutForm } from '@/components/checkout/CheckoutForm';
 
-export const metadata = { title: 'Оформлення замовлення — Bootsbaza' };
+export const metadata = { title: 'Оформлення замовлення — Bootsbaza', robots: { index: false, follow: true } };
 
 export default function CheckoutPage() {
   return (

@@ -2,7 +2,7 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CartView } from '@/components/cart/CartView';
 
-export const metadata = { title: 'Кошик — Bootsbaza' };
+export const metadata = { title: 'Кошик — Bootsbaza', robots: { index: false, follow: true } };
 
 export default function CartPage() {
   return (

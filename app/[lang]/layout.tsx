@@ -9,28 +9,34 @@ import { organizationJsonLd, websiteJsonLd, jsonLdScript } from '@/lib/seo';
 import { LOCALES, isLocale, type Locale } from '@/lib/i18n';
 import { LocaleProvider } from '@/components/LocaleProvider';
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl()),
-  title: {
-    default: 'Bootsbaza — футбольне взуття та екіпіровка',
-    template: '%s — Bootsbaza',
-  },
-  description: SITE_DESCRIPTION,
-  keywords: ['бутси', 'сороконіжки', 'футзалки', 'футбольна екіпіровка', 'Bootsbaza'],
-  openGraph: {
-    type: 'website',
-    siteName: SITE_NAME,
-    title: 'Bootsbaza — футбольне взуття та екіпіровка',
-    description: SITE_DESCRIPTION,
-    locale: 'uk_UA',
-    images: ['/logo.svg'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Bootsbaza',
-    description: SITE_DESCRIPTION,
-  },
-};
+const RU_DESCRIPTION =
+  'Интернет-магазин футбольной обуви и экипировки: бутсы, сороконожки, футзалки, детская обувь. Актуальное наличие, доставка Новой Почтой.';
+
+export function generateMetadata({ params }: { params: { lang: string } }): Metadata {
+  const ru = params.lang === 'ru';
+  const description = ru ? RU_DESCRIPTION : SITE_DESCRIPTION;
+  const title = ru
+    ? 'Bootsbaza — футбольная обувь и экипировка'
+    : 'Bootsbaza — футбольне взуття та екіпіровка';
+  return {
+    metadataBase: new URL(siteUrl()),
+    title: { default: title, template: '%s — Bootsbaza' },
+    description,
+    keywords: ru
+      ? ['бутсы', 'сороконожки', 'футзалки', 'футбольная экипировка', 'Bootsbaza']
+      : ['бутси', 'сороконіжки', 'футзалки', 'футбольна екіпіровка', 'Bootsbaza'],
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title,
+      description,
+      locale: ru ? 'ru_RU' : 'uk_UA',
+      alternateLocale: ru ? ['uk_UA'] : ['ru_RU'],
+      images: ['/logo.svg'],
+    },
+    twitter: { card: 'summary_large_image', title: 'Bootsbaza', description },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#0a0d0b',

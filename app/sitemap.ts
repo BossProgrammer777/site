@@ -11,35 +11,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const now = new Date();
 
-  const staticPages = ['', '/about', '/catalog', '/blog', '/delivery', '/warranty', '/offer', '/contacts', '/cart'].map(
-    (path) => ({ url: `${base}${path}`, lastModified: now }),
-  );
+  // Разворачивает «чистый» путь в записи для обеих локалей + hreflang-alternates.
+  // Служебные страницы (корзина/чекаут/избранное) в карту не попадают.
+  const entry = (
+    path: string,
+    lastModified: Date,
+    changeFrequency?: 'daily' | 'weekly' | 'monthly',
+  ): MetadataRoute.Sitemap => {
+    const clean = path === '/' ? '' : path;
+    const uaUrl = `${base}${clean || '/'}`;
+    const ruUrl = `${base}/ru${clean}`;
+    const languages = { 'uk-UA': uaUrl, 'ru-UA': ruUrl, 'x-default': uaUrl };
+    return [
+      { url: uaUrl, lastModified, changeFrequency, alternates: { languages } },
+      { url: ruUrl, lastModified, changeFrequency, alternates: { languages } },
+    ];
+  };
 
-  // Статьи блога.
-  const blogPages: MetadataRoute.Sitemap = BLOG.map((a) => ({
-    url: `${base}/blog/${a.slug}`,
-    lastModified: new Date(a.date),
-    changeFrequency: 'monthly' as const,
-  }));
+  const out: MetadataRoute.Sitemap = [];
+
+  // Статические (индексируемые) страницы.
+  for (const p of ['', '/about', '/catalog', '/blog', '/delivery', '/warranty', '/offer', '/contacts']) {
+    out.push(...entry(p, now));
+  }
 
   // Посадочные категории.
-  const categoryPages: MetadataRoute.Sitemap = categoryLandingSlugs().map((slug) => ({
-    url: `${base}/catalog/${slug}`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-  }));
+  for (const slug of categoryLandingSlugs()) {
+    out.push(...entry(`/catalog/${slug}`, now, 'daily'));
+  }
 
-  let products: MetadataRoute.Sitemap = [];
-  let brandPages: MetadataRoute.Sitemap = [];
+  // Статьи блога.
+  for (const a of BLOG) {
+    out.push(...entry(`/blog/${a.slug}`, new Date(a.date), 'monthly'));
+  }
+
   try {
     const catalog = await getCatalog();
-    products = catalog.sections.flatMap((s) =>
-      s.products.map((p) => ({
-        url: `${base}/product/${encodeURIComponent(p.slug)}`,
-        lastModified: now,
-        changeFrequency: 'daily' as const,
-      })),
-    );
+
+    // Карточки товаров.
+    for (const s of catalog.sections) {
+      for (const p of s.products) {
+        out.push(...entry(`/product/${encodeURIComponent(p.slug)}`, now, 'daily'));
+      }
+    }
 
     // Брендовые посадочные — только для непустых пар (категория × бренд).
     for (const catSlug of categoryLandingSlugs()) {
@@ -50,17 +64,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const has = section.products.some(
           (p) => detectBrand(`${p.group || ''} ${p.name}`, catSlug) === b.name,
         );
-        if (has)
-          brandPages.push({
-            url: `${base}/catalog/${catSlug}/${b.slug}`,
-            lastModified: now,
-            changeFrequency: 'daily' as const,
-          });
+        if (has) out.push(...entry(`/catalog/${catSlug}/${b.slug}`, now, 'daily'));
       }
     }
   } catch {
     /* без товаров — только статические */
   }
 
-  return [...staticPages, ...categoryPages, ...blogPages, ...brandPages, ...products];
+  return out;
 }
