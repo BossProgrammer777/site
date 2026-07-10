@@ -15,6 +15,7 @@ import { getSession, runExclusive } from './sessions.js';
 import { runAgent } from './agent.js';
 import { instagramChannel, type Channel } from './channel.js';
 import { WEBCHAT_HTML } from './webchat.js';
+import { PRIVACY_HTML } from './privacy.js';
 import { notifyGroup, escapeHtml } from './telegram.js';
 
 const app = express();
@@ -35,6 +36,11 @@ app.get('/health', (_req, res) => {
 // --- Веб-чат (тестовая страница в браузере) ----------------------------------
 app.get('/', (_req, res) => {
   res.type('html').send(WEBCHAT_HTML);
+});
+
+// Политика конфиденциальности (нужна для публикации приложения в Meta).
+app.get('/privacy', (_req, res) => {
+  res.type('html').send(PRIVACY_HTML);
 });
 
 app.post('/api/chat', async (req: Request, res: Response) => {
