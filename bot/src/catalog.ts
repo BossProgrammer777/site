@@ -49,7 +49,14 @@ function norm(s: string): string {
 
 async function load(): Promise<CatalogCache> {
   const res = await fetch(`${config.siteUrl}/api/catalog`, {
-    headers: { accept: 'application/json' },
+    headers: {
+      accept: 'application/json',
+      // Представляемся обычным браузером — чтобы анти-бот защита хостинга
+      // (напр. Vercel WAF) не отдавала 403 на серверный запрос.
+      'user-agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+      'accept-language': 'uk,ru;q=0.9,en;q=0.8',
+    },
   });
   if (!res.ok) throw new Error(`Каталог недоступен: ${res.status}`);
   const data = (await res.json()) as { sections?: Section[] };
