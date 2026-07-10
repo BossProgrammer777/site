@@ -112,10 +112,35 @@ export function availableSizes(p: Product): string[] {
   return p.sizes.filter((s) => s.inStock).map((s) => s.label);
 }
 
+// Синонимы: клиент пишет по-русски/разговорно, а в каталоге украинские названия.
+// Слово запроса совпадает, если в товаре есть ЛЮБАЯ форма из его группы.
+const SYNONYMS: string[][] = [
+  ['носки', 'носок', 'шкарпетки', 'шкарпетка'],
+  ['гетры', 'гетра', 'гетри'],
+  ['бутсы', 'бутси', 'бутса'],
+  ['сороконожки', 'сороконіжки', 'сороконожка', 'багатошиповки', 'многошиповки', 'копы'],
+  ['футзалки', 'футзалка', 'футзалі', 'футзал', 'зальные', 'зальні'],
+  ['детская', 'детские', 'детский', 'дитяче', 'дитячі', 'дитячий', 'дитяча', 'ребенку', 'дитині'],
+  ['щитки', 'щиток', 'щитка'],
+  ['мяч', 'мячи', 'мячик', "м'яч", "м'ячі"],
+  ['вратарь', 'вратарские', 'вратарский', 'вратаря', 'воротар', 'воротарів', 'воротарські'],
+  ['перчатки', 'перчатка', 'рукавиці', 'рукавички', 'рукавицы'],
+  ['термобелье', 'термобельё', 'термобілизна', 'термо'],
+  ['сумка', 'сумки', 'сумку'],
+].map((g) => g.map(norm));
+const SYN_INDEX = new Map<string, number>();
+SYNONYMS.forEach((g, i) => g.forEach((t) => SYN_INDEX.set(t, i)));
+
+function wordMatches(hay: string, w: string): boolean {
+  const gi = SYN_INDEX.get(w);
+  if (gi === undefined) return hay.includes(w);
+  return SYNONYMS[gi].some((t) => hay.includes(t));
+}
+
 /**
- * Поиск товаров: товар должен содержать все слова запроса (в любом порядке)
- * в названии/подкатегории/коде/стране. Ранжируем совпадения с начала названия
- * и наличие выше. Возвращаем максимум `limit`.
+ * Поиск товаров: товар должен содержать все слова запроса (в любом порядке,
+ * с учётом синонимов) в названии/подкатегории/коде/стране. Ранжируем совпадения
+ * с начала названия и наличие выше. Возвращаем максимум `limit`.
  */
 export async function searchProducts(query: string, limit = 6): Promise<Product[]> {
   const q = norm(query);
@@ -126,7 +151,7 @@ export async function searchProducts(query: string, limit = 6): Promise<Product[
   const scored: { p: Product; score: number }[] = [];
   for (const p of products) {
     const hay = norm(`${p.name} ${p.group || ''} ${p.code || ''} ${p.country || ''}`);
-    if (!words.every((w) => hay.includes(w))) continue;
+    if (!words.every((w) => wordMatches(hay, w))) continue;
     const name = norm(p.name);
     let score = 0;
     if (name.startsWith(q)) score += 100;
