@@ -15,6 +15,7 @@ import {
 import { getSession, runExclusive } from './sessions.js';
 import { runAgent } from './agent.js';
 import { instagramChannel, type Channel } from './channel.js';
+import { startTokenRefresh } from './igToken.js';
 import { WEBCHAT_HTML } from './webchat.js';
 import { PRIVACY_HTML } from './privacy.js';
 import { notifyGroup, escapeHtml } from './telegram.js';
@@ -161,11 +162,13 @@ app.post('/webhook', (req: Request, res: Response) => {
 });
 
 app.listen(config.port, () => {
-  // Подписываем приложение на сообщения аккаунта (best-effort) при старте.
+  // Подписываем приложение на сообщения аккаунта (best-effort) при старте
+  // и запускаем автопродление токена Instagram.
   if (instagramConfigured()) {
     subscribeToMessages().then((r) =>
       console.log(`[instagram] subscribe messages: ok=${r.ok} status=${r.status} ${r.body}`),
     );
+    startTokenRefresh();
   }
   console.log(`Bootsbaza-бот слушает на порту ${config.port}`);
   console.log(`Веб-чат для теста: открой корневой URL в браузере`);

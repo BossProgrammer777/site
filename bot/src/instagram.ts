@@ -3,10 +3,11 @@
 
 import crypto from 'node:crypto';
 import { config } from './config.js';
+import { getAccessToken } from './igToken.js';
 
 const sendUrl = () =>
   `${config.instagram.graphBase}/me/messages?access_token=${encodeURIComponent(
-    config.instagram.accessToken,
+    getAccessToken(),
   )}`;
 
 /**
@@ -16,7 +17,7 @@ const sendUrl = () =>
  */
 export async function subscribeToMessages(): Promise<{ ok: boolean; status: number; body: string }> {
   const url = `${config.instagram.graphBase}/me/subscribed_apps?subscribed_fields=messages&access_token=${encodeURIComponent(
-    config.instagram.accessToken,
+    getAccessToken(),
   )}`;
   try {
     const res = await fetch(url, { method: 'POST' });
