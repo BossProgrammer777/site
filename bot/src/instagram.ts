@@ -9,6 +9,24 @@ const sendUrl = () =>
     config.instagram.accessToken,
   )}`;
 
+/**
+ * Подписывает приложение на вебхук-поле "messages" для подключённого аккаунта
+ * (аналог тумблера «Подписка на Webhooks» в панели Meta, только через API —
+ * панель бывает глючит). Вызываем на старте и через GET /setup.
+ */
+export async function subscribeToMessages(): Promise<{ ok: boolean; status: number; body: string }> {
+  const url = `${config.instagram.graphBase}/me/subscribed_apps?subscribed_fields=messages&access_token=${encodeURIComponent(
+    config.instagram.accessToken,
+  )}`;
+  try {
+    const res = await fetch(url, { method: 'POST' });
+    const body = (await res.text()).slice(0, 400);
+    return { ok: res.ok, status: res.status, body };
+  } catch (e) {
+    return { ok: false, status: 0, body: (e as Error).message };
+  }
+}
+
 async function send(body: unknown): Promise<void> {
   try {
     const res = await fetch(sendUrl(), {

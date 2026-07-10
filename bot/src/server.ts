@@ -10,6 +10,7 @@ import {
   sendText,
   markSeen,
   typingOn,
+  subscribeToMessages,
 } from './instagram.js';
 import { getSession, runExclusive } from './sessions.js';
 import { runAgent } from './agent.js';
@@ -41,6 +42,17 @@ app.get('/', (_req, res) => {
 // Политика конфиденциальности (нужна для публикации приложения в Meta).
 app.get('/privacy', (_req, res) => {
   res.type('html').send(PRIVACY_HTML);
+});
+
+// Подписка приложения на сообщения аккаунта (замена глючного тумблера в Meta).
+// Открой этот адрес в браузере — увидишь {"success":true}, если всё ок.
+app.get('/setup', async (_req, res) => {
+  if (!instagramConfigured()) {
+    res.status(400).json({ error: 'Instagram не настроен (нет IG_ACCESS_TOKEN)' });
+    return;
+  }
+  const r = await subscribeToMessages();
+  res.status(r.ok ? 200 : 502).json({ ok: r.ok, status: r.status, response: r.body });
 });
 
 app.post('/api/chat', async (req: Request, res: Response) => {
@@ -149,6 +161,12 @@ app.post('/webhook', (req: Request, res: Response) => {
 });
 
 app.listen(config.port, () => {
+  // Подписываем приложение на сообщения аккаунта (best-effort) при старте.
+  if (instagramConfigured()) {
+    subscribeToMessages().then((r) =>
+      console.log(`[instagram] subscribe messages: ok=${r.ok} status=${r.status} ${r.body}`),
+    );
+  }
   console.log(`Bootsbaza-бот слушает на порту ${config.port}`);
   console.log(`Веб-чат для теста: открой корневой URL в браузере`);
   console.log(`Источник каталога: ${config.siteUrl}`);
