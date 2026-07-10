@@ -23,7 +23,7 @@ export const WEBCHAT_HTML = `<!doctype html>
   .bot { align-self: flex-start; background: #182420; border: 1px solid #23302a; border-bottom-left-radius: 4px; }
   .card { align-self: flex-start; max-width: 80%; background: #182420; border: 1px solid #23302a;
     border-radius: 14px; overflow: hidden; }
-  .card img { display: block; width: 100%; max-height: 320px; object-fit: cover; background: #0d1512; }
+  .card img { display: block; width: 100%; height: auto; max-height: 460px; object-fit: contain; background: #0d1512; }
   .card .cap { padding: 8px 11px; font-size: 14px; white-space: pre-wrap; }
   .sys { align-self: center; color: #7d8f83; font-size: 13px; }
   form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #23302a; }
