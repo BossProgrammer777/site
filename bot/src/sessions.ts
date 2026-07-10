@@ -12,6 +12,9 @@ export interface Session {
   lastActive: number;
   // slug'и товаров, чьи фото-карточки уже отправлены клиенту — чтобы не слать дважды.
   shownSlugs: Set<string>;
+  // Счётчик сообщений без намёка на покупку и флаг «замолчать» (антитролль).
+  nonBuyStrikes: number;
+  muted: boolean;
   // Простая очередь, чтобы два сообщения подряд не запускали петлю параллельно.
   lock: Promise<void>;
 }
@@ -28,7 +31,16 @@ export function getSession(senderId: string): Session {
     s = undefined;
   }
   if (!s) {
-    s = { senderId, messages: [], paused: false, lastActive: now, shownSlugs: new Set(), lock: Promise.resolve() };
+    s = {
+      senderId,
+      messages: [],
+      paused: false,
+      lastActive: now,
+      shownSlugs: new Set(),
+      nonBuyStrikes: 0,
+      muted: false,
+      lock: Promise.resolve(),
+    };
     SESSIONS.set(senderId, s);
   }
   s.lastActive = now;

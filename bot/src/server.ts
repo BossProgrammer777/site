@@ -13,6 +13,7 @@ import {
   subscribeToMessages,
 } from './instagram.js';
 import { getSession, runExclusive } from './sessions.js';
+import { hasBuyingSignal, isClearJunk } from './intent.js';
 import { runAgent } from './agent.js';
 import { instagramChannel, type Channel } from './channel.js';
 import { startTokenRefresh } from './igToken.js';
@@ -132,6 +133,18 @@ app.post('/webhook', (req: Request, res: Response) => {
         `✉️ <b>Нове повідомлення від клієнта (ручний режим)</b>\n\n${escapeHtml(note)}`,
       ).catch(() => undefined);
       continue;
+    }
+
+    // Антитролль: не тратим деньги на тех, кто явно не за покупкой.
+    // Есть намёк на покупку (или фото) → работаем и сбрасываем счётчики.
+    // Явный мусор → молчим сразу. Нейтральная болтовня → терпим 3, потом молчим.
+    if (imageUrls.length || hasBuyingSignal(text)) {
+      session.nonBuyStrikes = 0;
+      session.muted = false;
+    } else {
+      session.nonBuyStrikes += 1;
+      if (isClearJunk(text) || session.nonBuyStrikes > 3) session.muted = true;
+      if (session.muted) continue; // молчим — модель не запускаем, деньги не тратим
     }
 
     runExclusive(session, async () => {
