@@ -3,7 +3,7 @@
 
 import 'dotenv/config';
 import express, { type Request, type Response } from 'express';
-import { config, assertInstagramConfig } from './config.js';
+import { config, instagramConfigured } from './config.js';
 import {
   parseIncoming,
   verifySignature,
@@ -13,10 +13,9 @@ import {
 } from './instagram.js';
 import { getSession, runExclusive } from './sessions.js';
 import { runAgent } from './agent.js';
-import { instagramChannel } from './channel.js';
+import { instagramChannel, type Channel } from './channel.js';
+import { WEBCHAT_HTML } from './webchat.js';
 import { notifyGroup, escapeHtml } from './telegram.js';
-
-assertInstagramConfig();
 
 const app = express();
 
@@ -30,7 +29,50 @@ app.use(
 );
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, instagram: instagramConfigured() });
+});
+
+// --- Веб-чат (тестовая страница в браузере) ----------------------------------
+app.get('/', (_req, res) => {
+  res.type('html').send(WEBCHAT_HTML);
+});
+
+app.post('/api/chat', async (req: Request, res: Response) => {
+  const { sessionId, message, password } = (req.body || {}) as {
+    sessionId?: string;
+    message?: string;
+    password?: string;
+  };
+  if (config.webChatPassword && password !== config.webChatPassword) {
+    res.status(401).json({ error: 'Неверный пароль' });
+    return;
+  }
+  const text = (message || '').trim();
+  const id = (sessionId || '').trim();
+  if (!text || !id) {
+    res.status(400).json({ error: 'Пустое сообщение' });
+    return;
+  }
+
+  const session = getSession(`web:${id}`);
+  // Канал, который собирает карточки товаров, чтобы вернуть их странице.
+  const cards: ({ kind: 'image'; url: string } | { kind: 'text'; text: string })[] = [];
+  const webChannel: Channel = {
+    async sendText(_r, t) {
+      cards.push({ kind: 'text', text: t });
+    },
+    async sendImage(_r, url) {
+      cards.push({ kind: 'image', url });
+    },
+  };
+
+  try {
+    const reply = await runAgent(session, text, { recipientId: `web:${id}`, session, channel: webChannel });
+    res.json({ reply, cards, paused: session.paused });
+  } catch (e) {
+    console.error('[webchat] ошибка:', (e as Error).message);
+    res.status(500).json({ error: (e as Error).message });
+  }
 });
 
 // --- Верификация вебхука (Meta присылает GET при подключении) -----------------
@@ -47,6 +89,10 @@ app.get('/webhook', (req: Request, res: Response) => {
 
 // --- Входящие сообщения -------------------------------------------------------
 app.post('/webhook', (req: Request, res: Response) => {
+  if (!instagramConfigured()) {
+    res.sendStatus(200); // Instagram ещё не настроен — просто игнорируем
+    return;
+  }
   const raw = (req as Request & { rawBody?: Buffer }).rawBody ?? Buffer.from('');
   if (!verifySignature(raw, req.header('x-hub-signature-256'))) {
     res.sendStatus(403);
@@ -97,7 +143,12 @@ app.post('/webhook', (req: Request, res: Response) => {
 });
 
 app.listen(config.port, () => {
-  console.log(`Bootsbaza IG-бот слушает на порту ${config.port}`);
+  console.log(`Bootsbaza-бот слушает на порту ${config.port}`);
+  console.log(`Веб-чат для теста: открой корневой URL в браузере`);
   console.log(`Источник каталога: ${config.siteUrl}`);
-  console.log(`Graph API: ${config.instagram.graphBase}`);
+  console.log(
+    instagramConfigured()
+      ? `Instagram: подключён (${config.instagram.graphBase})`
+      : `Instagram: НЕ настроен — работает только веб-чат (это нормально для теста)`,
+  );
 });

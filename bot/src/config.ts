@@ -36,16 +36,15 @@ export const config = {
 
   port: Number(optional('PORT', '8080')),
 
+  // Необязательный пароль для веб-чата (тестовая страница /). Если задан —
+  // страница спросит его перед началом, чтобы посторонние не тратили токены.
+  webChatPassword: optional('WEB_CHAT_PASSWORD'),
+
   // Модель ИИ-консультанта.
   model: 'claude-opus-4-8',
 } as const;
 
-/** Проверка, что Instagram настроен (вызывается при запуске боевого сервера). */
-export function assertInstagramConfig(): void {
-  if (!config.instagram.accessToken || !config.instagram.verifyToken) {
-    throw new Error(
-      'Для запуска сервера нужны IG_ACCESS_TOKEN и IG_VERIFY_TOKEN (см. .env.example). ' +
-        'Для локального теста без Instagram используйте: npm run chat',
-    );
-  }
+/** Настроен ли Instagram (для боевого режима вебхуков). */
+export function instagramConfigured(): boolean {
+  return Boolean(config.instagram.accessToken && config.instagram.verifyToken);
 }
