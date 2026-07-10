@@ -148,7 +148,27 @@ export async function executeTool(
         const limit = Math.min(8, Math.max(1, Number(input.limit) || 6));
         const found = await searchProducts(query, limit);
         if (!found.length) return JSON.stringify({ found: 0, products: [], hint: 'Ничего не найдено — предложи уточнить запрос или показать похожее.' });
-        return JSON.stringify({ found: found.length, products: found.map(productBrief) });
+
+        // АВТОПОКАЗ: сразу шлём клиенту фото-карточки найденного (до 4 новых, в наличии).
+        // Так бот физически не может «забыть» показать товар — карточки уходят всегда.
+        const toShow = found
+          .filter((p) => p.anyInStock && !ctx.session.shownSlugs.has(p.slug))
+          .slice(0, 4);
+        for (const p of toShow) {
+          const img = productImage(p);
+          const text = `${p.name}\n${uah(p.finalPrice)}\n${productLink(p)}`;
+          if (img) await ctx.channel.sendImage(ctx.recipientId, img);
+          await ctx.channel.sendText(ctx.recipientId, text);
+          ctx.session.shownSlugs.add(p.slug);
+        }
+        return JSON.stringify({
+          found: found.length,
+          shown_as_cards: toShow.map((p) => p.slug),
+          products: found.map(productBrief),
+          note: toShow.length
+            ? 'Клиенту УЖЕ отправлены фото-карточки этих товаров (фото+цена+ссылка). НЕ перечисляй их списком в тексте — просто кратко прокомментируй показанное и задай следующий вопрос.'
+            : 'Карточки не отправлены (нет в наличии или уже показывались). Не выдумывай отправку фото.',
+        });
       }
 
       case 'get_product': {
@@ -173,6 +193,7 @@ export async function executeTool(
           // Вложение и текст в IG — разные посылки, отправляем по очереди.
           if (img) await ctx.channel.sendImage(ctx.recipientId, img);
           await ctx.channel.sendText(ctx.recipientId, text);
+          ctx.session.shownSlugs.add(slug);
           sent.push(slug);
         }
         if (!sent.length) return JSON.stringify({ error: 'Товары не найдены — карточки не отправлены' });

@@ -10,6 +10,8 @@ export interface Session {
   // Клиент попросил живого менеджера — бот замолкает, чтобы не мешать.
   paused: boolean;
   lastActive: number;
+  // slug'и товаров, чьи фото-карточки уже отправлены клиенту — чтобы не слать дважды.
+  shownSlugs: Set<string>;
   // Простая очередь, чтобы два сообщения подряд не запускали петлю параллельно.
   lock: Promise<void>;
 }
@@ -26,7 +28,7 @@ export function getSession(senderId: string): Session {
     s = undefined;
   }
   if (!s) {
-    s = { senderId, messages: [], paused: false, lastActive: now, lock: Promise.resolve() };
+    s = { senderId, messages: [], paused: false, lastActive: now, shownSlugs: new Set(), lock: Promise.resolve() };
     SESSIONS.set(senderId, s);
   }
   s.lastActive = now;
