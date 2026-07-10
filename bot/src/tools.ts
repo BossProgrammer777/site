@@ -69,18 +69,19 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'send_product_card',
     description:
-      'Отправить клиенту в Директ фото товара с короткой подписью (название, цена, ссылка). ' +
-      'Используй, чтобы наглядно показать подобранные варианты (обычно 1–4 карточки). После отправки карточек кратко прокомментируй их текстом.',
+      'Показать клиенту фото товара(ов) с ценой и ссылкой. Это ЕДИНСТВЕННЫЙ способ показать товар — ' +
+      'без вызова этого инструмента клиент фото/ссылку не увидит. Чтобы показать несколько вариантов, передай их ' +
+      'списком в slugs ОДНИМ вызовом (1–4 товара). После этого кратко прокомментируй текстом.',
     input_schema: {
       type: 'object',
       properties: {
-        slug: { type: 'string', description: 'slug товара из каталога' },
-        caption: {
-          type: 'string',
-          description: 'Необязательная короткая подпись от себя (1 строка). Цена и ссылка добавятся автоматически.',
+        slugs: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Список slug товаров для показа (1–4). Показывай все предложенные варианты одним вызовом.',
         },
+        slug: { type: 'string', description: 'Один slug (если карточка одна). Можно вместо slugs.' },
       },
-      required: ['slug'],
     },
   },
   {
@@ -157,17 +158,25 @@ export async function executeTool(
       }
 
       case 'send_product_card': {
-        const p = await getProductBySlug(String(input.slug || ''));
-        if (!p) return JSON.stringify({ error: 'Товар не найден, карточка не отправлена' });
-        const img = productImage(p);
-        const caption = String(input.caption || '').trim();
-        const text =
-          (caption ? `${caption}\n` : '') +
-          `${p.name}\n${uah(p.finalPrice)}\n${productLink(p)}`;
-        if (img) await ctx.channel.sendImage(ctx.recipientId, img);
-        // Текст-подпись отдельным сообщением (у IG вложение и текст — разные посылки).
-        await ctx.channel.sendText(ctx.recipientId, text);
-        return JSON.stringify({ sent: true, had_photo: !!img, slug: p.slug });
+        // Принимаем и список slugs, и одиночный slug.
+        const raw = Array.isArray(input.slugs) ? input.slugs.map(String) : [];
+        if (input.slug) raw.push(String(input.slug));
+        const slugs = [...new Set(raw.map((s) => s.trim()).filter(Boolean))].slice(0, 4);
+        if (!slugs.length) return JSON.stringify({ error: 'Не указаны slug товаров — карточка не отправлена' });
+
+        const sent: string[] = [];
+        for (const slug of slugs) {
+          const p = await getProductBySlug(slug);
+          if (!p) continue;
+          const img = productImage(p);
+          const text = `${p.name}\n${uah(p.finalPrice)}\n${productLink(p)}`;
+          // Вложение и текст в IG — разные посылки, отправляем по очереди.
+          if (img) await ctx.channel.sendImage(ctx.recipientId, img);
+          await ctx.channel.sendText(ctx.recipientId, text);
+          sent.push(slug);
+        }
+        if (!sent.length) return JSON.stringify({ error: 'Товары не найдены — карточки не отправлены' });
+        return JSON.stringify({ sent: sent.length, slugs: sent });
       }
 
       case 'create_order': {
