@@ -24,6 +24,26 @@ export interface ToolContext {
 
 const uah = (n: number) => `${Math.round(n).toLocaleString('uk-UA')} грн`;
 
+const ALLOWED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+type MediaType = (typeof ALLOWED_MEDIA)[number];
+
+/** Скачивает картинку товара и возвращает image-блок (base64) для модели. */
+async function catalogImageBlock(url: string): Promise<Anthropic.ImageBlockParam | null> {
+  try {
+    const res = await fetch(url, { redirect: 'follow' });
+    if (!res.ok) return null;
+    const raw = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
+    const media: MediaType = (ALLOWED_MEDIA as readonly string[]).includes(raw)
+      ? (raw as MediaType)
+      : 'image/jpeg';
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength < 100 || buf.byteLength > 4_500_000) return null;
+    return { type: 'image', source: { type: 'base64', media_type: media, data: buf.toString('base64') } };
+  } catch {
+    return null;
+  }
+}
+
 function productBrief(p: Product) {
   const sizes = availableSizes(p);
   return {
@@ -64,6 +84,23 @@ export const TOOLS: Anthropic.Tool[] = [
       type: 'object',
       properties: { slug: { type: 'string' } },
       required: ['slug'],
+    },
+  },
+  {
+    name: 'match_photo',
+    description:
+      'Сравнить фото, которое прислал клиент, с товарами каталога и найти ТОЧНОЕ совпадение по модели И расцветке. ' +
+      'Возвращает фото товаров-кандидатов, чтобы ты глазами сравнил их с фото клиента. ' +
+      'Используй это, когда клиент прислал фото/скриншот и спрашивает «есть такие?». НЕ используй search_products для фото-запроса.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Бренд/модель/тип для сужения поиска, как ты определил по фото (напр. «Nike Mercurial Superfly»).',
+        },
+      },
+      required: ['query'],
     },
   },
   {
@@ -136,13 +173,47 @@ export const TOOLS: Anthropic.Tool[] = [
 
 // --- Исполнение --------------------------------------------------------------
 
+type ToolResult = string | (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[];
+
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
   ctx: ToolContext,
-): Promise<string> {
+): Promise<ToolResult> {
   try {
     switch (name) {
+      case 'match_photo': {
+        // Возвращаем модели фото кандидатов из каталога, чтобы она визуально
+        // сравнила их с фото клиента и выбрала точное совпадение по расцветке.
+        const query = String(input.query || '');
+        const found = (await searchProducts(query, 6)).filter((p) => p.anyInStock);
+        if (!found.length) {
+          return JSON.stringify({
+            found: 0,
+            message: 'В каталоге такой модели нет. Скажи клиенту честно, что такого нет, и предложи посмотреть похожие модели (search_products).',
+          });
+        }
+        const blocks: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = [
+          {
+            type: 'text',
+            text:
+              'Ниже фото товаров-кандидатов из каталога. Сравни их с фото клиента и найди ТОЧНОЕ совпадение по расцветке. ' +
+              'Если точное совпадение есть — покажи именно его клиенту через send_product_card и сразу переходи к оформлению. ' +
+              'Если точного совпадения по цвету НЕТ — честно скажи клиенту, что именно такой расцветки нет, и предложи 1–3 ближайшие карточками.',
+          },
+        ];
+        for (const p of found) {
+          blocks.push({
+            type: 'text',
+            text: `slug=${p.slug} · ${p.name} · ${uah(p.finalPrice)} · розміри: ${availableSizes(p).join(', ') || '—'}`,
+          });
+          const img = productImage(p);
+          const b = img ? await catalogImageBlock(img) : null;
+          if (b) blocks.push(b);
+        }
+        return blocks;
+      }
+
       case 'search_products': {
         const query = String(input.query || '');
         const limit = Math.min(8, Math.max(1, Number(input.limit) || 6));
