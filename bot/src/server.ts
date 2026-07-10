@@ -19,7 +19,6 @@ import { instagramChannel, type Channel } from './channel.js';
 import { startTokenRefresh } from './igToken.js';
 import { WEBCHAT_HTML } from './webchat.js';
 import { PRIVACY_HTML } from './privacy.js';
-import { notifyGroup, escapeHtml } from './telegram.js';
 
 const app = express();
 
@@ -126,14 +125,10 @@ app.post('/webhook', (req: Request, res: Response) => {
   for (const { senderId, text, imageUrls } of incoming) {
     const session = getSession(senderId);
 
-    // Диалог переведён на живого менеджера — бот молчит, но извещает группу.
-    if (session.paused) {
-      const note = text || (imageUrls.length ? '[клієнт надіслав фото]' : '');
-      notifyGroup(
-        `✉️ <b>Нове повідомлення від клієнта (ручний режим)</b>\n\n${escapeHtml(note)}`,
-      ).catch(() => undefined);
-      continue;
-    }
+    // Диалог переведён на живого менеджера — бот молчит и НЕ спамит группу
+    // (менеджер ведёт переписку прямо в Direct). В ТГ уходят только заказы и
+    // сам запрос менеджера.
+    if (session.paused) continue;
 
     // Антитролль: не тратим деньги на тех, кто явно не за покупкой.
     // Есть намёк на покупку (или фото) → работаем и сбрасываем счётчики.
