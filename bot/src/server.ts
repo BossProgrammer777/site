@@ -1,8 +1,9 @@
 // HTTP-сервер бота: приём вебхуков Instagram и запуск ИИ-консультанта.
 // Запуск: npm run dev (или npm start). Порт — из PORT (по умолчанию 8080).
 
+import 'dotenv/config';
 import express, { type Request, type Response } from 'express';
-import { config } from './config.js';
+import { config, assertInstagramConfig } from './config.js';
 import {
   parseIncoming,
   verifySignature,
@@ -12,7 +13,10 @@ import {
 } from './instagram.js';
 import { getSession, runExclusive } from './sessions.js';
 import { runAgent } from './agent.js';
+import { instagramChannel } from './channel.js';
 import { notifyGroup, escapeHtml } from './telegram.js';
+
+assertInstagramConfig();
 
 const app = express();
 
@@ -68,7 +72,11 @@ app.post('/webhook', (req: Request, res: Response) => {
       try {
         await markSeen(senderId);
         await typingOn(senderId);
-        const reply = await runAgent(session, text, { recipientId: senderId, session });
+        const reply = await runAgent(session, text, {
+          recipientId: senderId,
+          session,
+          channel: instagramChannel,
+        });
         if (reply) {
           await sendText(senderId, reply);
         } else if (!session.paused) {

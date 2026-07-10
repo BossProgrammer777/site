@@ -25,9 +25,11 @@ export const config = {
     chatId: required('TELEGRAM_CHAT_ID'),
   },
 
+  // Instagram нужен только для боевого сервера. Для локального теста (npm run
+  // chat) эти переменные можно не задавать — их наличие проверяет assertInstagramConfig().
   instagram: {
-    accessToken: required('IG_ACCESS_TOKEN'),
-    verifyToken: required('IG_VERIFY_TOKEN'),
+    accessToken: optional('IG_ACCESS_TOKEN'),
+    verifyToken: optional('IG_VERIFY_TOKEN'),
     appSecret: optional('META_APP_SECRET'),
     graphBase: optional('GRAPH_API_BASE', 'https://graph.instagram.com/v21.0').replace(/\/$/, ''),
   },
@@ -37,3 +39,13 @@ export const config = {
   // Модель ИИ-консультанта.
   model: 'claude-opus-4-8',
 } as const;
+
+/** Проверка, что Instagram настроен (вызывается при запуске боевого сервера). */
+export function assertInstagramConfig(): void {
+  if (!config.instagram.accessToken || !config.instagram.verifyToken) {
+    throw new Error(
+      'Для запуска сервера нужны IG_ACCESS_TOKEN и IG_VERIFY_TOKEN (см. .env.example). ' +
+        'Для локального теста без Instagram используйте: npm run chat',
+    );
+  }
+}

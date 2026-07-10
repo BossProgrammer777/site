@@ -12,13 +12,14 @@ import {
   availableSizes,
   type Product,
 } from './catalog.js';
-import { sendImage, sendText } from './instagram.js';
 import { notifyGroup, escapeHtml } from './telegram.js';
 import type { Session } from './sessions.js';
+import type { Channel } from './channel.js';
 
 export interface ToolContext {
   recipientId: string;
   session: Session;
+  channel: Channel;
 }
 
 const uah = (n: number) => `${Math.round(n).toLocaleString('uk-UA')} грн`;
@@ -163,9 +164,9 @@ export async function executeTool(
         const text =
           (caption ? `${caption}\n` : '') +
           `${p.name}\n${uah(p.finalPrice)}\n${productLink(p)}`;
-        if (img) await sendImage(ctx.recipientId, img);
+        if (img) await ctx.channel.sendImage(ctx.recipientId, img);
         // Текст-подпись отдельным сообщением (у IG вложение и текст — разные посылки).
-        await sendText(ctx.recipientId, text);
+        await ctx.channel.sendText(ctx.recipientId, text);
         return JSON.stringify({ sent: true, had_photo: !!img, slug: p.slug });
       }
 

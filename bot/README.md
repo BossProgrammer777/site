@@ -58,10 +58,26 @@ bot/
 cd bot
 cp .env.example .env    # заполните ключи
 npm install
-npm run dev             # локальный запуск (или npm start)
+npm run dev             # боевой сервер (нужны переменные Instagram)
 ```
 
 Проверка сборки без запуска: `npm run typecheck`.
+
+## Локальный тест без Instagram
+
+Можно пообщаться с ботом прямо в консоли, ещё до подключения Директа —
+нужны только `ANTHROPIC_API_KEY`, `SITE_URL` и Telegram (для оформления заказа):
+
+```bash
+cd bot
+cp .env.example .env    # достаточно заполнить ANTHROPIC_API_KEY, SITE_URL, TELEGRAM_*
+npm install
+npm run chat
+```
+
+Пишете как клиент — бот консультирует, «карточки товаров» печатаются в консоль,
+а реальные заказы и вызов менеджера уходят в вашу Telegram-группу. Так виден
+весь путь продажи без настройки Meta.
 
 ## Подключение вебхука в Meta
 
