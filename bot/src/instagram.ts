@@ -97,17 +97,23 @@ export function verifySignature(rawBody: Buffer, signatureHeader: string | undef
 export interface IncomingMessage {
   senderId: string;
   text: string;
+  imageUrls: string[];
 }
 
+interface Attachment {
+  type?: string;
+  payload?: { url?: string };
+}
 interface WebhookMessaging {
   sender?: { id?: string };
   recipient?: { id?: string };
-  message?: { text?: string; is_echo?: boolean; is_deleted?: boolean; attachments?: unknown[] };
+  message?: { text?: string; is_echo?: boolean; is_deleted?: boolean; attachments?: Attachment[] };
 }
 
 /**
- * Достаёт из тела вебхука текстовые сообщения от клиентов (не эхо, не удаления).
- * Поддерживает объекты `instagram` и `page` (Messenger-совместимый формат).
+ * Достаёт из тела вебхука сообщения от клиентов (не эхо, не удаления):
+ * текст и/или ссылки на присланные фото. Поддерживает объекты `instagram`
+ * и `page` (Messenger-совместимый формат).
  */
 export function parseIncoming(body: unknown): IncomingMessage[] {
   const out: IncomingMessage[] = [];
@@ -117,9 +123,14 @@ export function parseIncoming(body: unknown): IncomingMessage[] {
       const msg = m.message;
       if (!msg || msg.is_echo || msg.is_deleted) continue;
       const senderId = m.sender?.id;
+      if (!senderId) continue;
       const text = (msg.text || '').trim();
-      if (!senderId || !text) continue; // вложения без текста пока пропускаем
-      out.push({ senderId, text });
+      const imageUrls = (msg.attachments || [])
+        .filter((a) => a.type === 'image' && a.payload?.url)
+        .map((a) => a.payload!.url!)
+        .slice(0, 3);
+      if (!text && !imageUrls.length) continue; // ни текста, ни фото — пропускаем
+      out.push({ senderId, text, imageUrls });
     }
   }
   return out;

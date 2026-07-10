@@ -122,13 +122,14 @@ app.post('/webhook', (req: Request, res: Response) => {
   res.sendStatus(200);
 
   const incoming = parseIncoming(req.body);
-  for (const { senderId, text } of incoming) {
+  for (const { senderId, text, imageUrls } of incoming) {
     const session = getSession(senderId);
 
     // Диалог переведён на живого менеджера — бот молчит, но извещает группу.
     if (session.paused) {
+      const note = text || (imageUrls.length ? '[клієнт надіслав фото]' : '');
       notifyGroup(
-        `✉️ <b>Нове повідомлення від клієнта (ручний режим)</b>\n\n${escapeHtml(text)}`,
+        `✉️ <b>Нове повідомлення від клієнта (ручний режим)</b>\n\n${escapeHtml(note)}`,
       ).catch(() => undefined);
       continue;
     }
@@ -137,11 +138,12 @@ app.post('/webhook', (req: Request, res: Response) => {
       try {
         await markSeen(senderId);
         await typingOn(senderId);
-        const reply = await runAgent(session, text, {
-          recipientId: senderId,
+        const reply = await runAgent(
           session,
-          channel: instagramChannel,
-        });
+          text,
+          { recipientId: senderId, session, channel: instagramChannel },
+          imageUrls,
+        );
         if (reply) {
           await sendText(senderId, reply);
         } else if (!session.paused) {

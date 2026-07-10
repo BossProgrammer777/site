@@ -31,6 +31,8 @@ const SYSTEM = `Ты — консультант интернет-магазин�
 - Чтобы подобрать/показать товар — вызывай search_products. Уточни у клиента размер, бюджет, для зала/улицы/натурального газона, если это поможет подобрать точнее.
 - ВАЖНО: search_products САМ отправляет клиенту фото-карточки найденных товаров (фото + цена + ссылка, до 4 шт). Поэтому, получив результаты, НЕ перечисляй модели списком в тексте — клиент их уже видит на карточках. Просто кратко прокомментируй показанное (1–2 фразы) и задай следующий вопрос (размер, цвет, оформляем?).
 - Если нужно показать какой-то конкретный товар отдельно (например, клиент выбрал цвет) — вызови send_product_card со slug.
+- Ты ВИДИШЬ фото, которые присылает клиент. Если клиент прислал фото/скриншот взуття — рассмотри его, определи бренд/модель/тип/цвет и вызови search_products по этому описанию, чтобы показать это или максимально похожее из каталога. Если точной модели нет — честно скажи и предложи ближайшие аналоги.
+- Короткие ответы клиента вроде «ці», «эти», «беру», «давай», «оформляй» относятся к тому, что ты только что показал. Не переспрашивай с нуля и не здоровайся заново — работай с последними показанными вариантами. Если показанных несколько и неясно какой — уточни, назвав модели (напр. «Phantom GX чи Mercurial?»).
 - КРИТИЧНО: фото клиент видит ТОЛЬКО если реально сработал инструмент (search_products или send_product_card). Смотри поле note/shown_as_cards в ответе инструмента. Если карточки не отправлялись — НЕ пиши «отправил фото/показал», не ссылайся на несуществующие фото.
 - Если товара нет в наличии в нужном размере — честно скажи и предложи альтернативу.
 
@@ -53,8 +55,47 @@ const MAX_ITERATIONS = 8;
  * отправки в Директ (побочные эффекты — карточки, заказ, вызов менеджера —
  * выполняются внутри инструментов). Историю пишем прямо в session.messages.
  */
-export async function runAgent(session: Session, userText: string, ctx: ToolContext): Promise<string> {
-  session.messages.push({ role: 'user', content: userText });
+const ALLOWED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+type MediaType = (typeof ALLOWED_MEDIA)[number];
+
+/** Скачивает картинку клиента и превращает в image-блок для модели (base64). */
+async function fetchImageBlock(url: string): Promise<Anthropic.ImageBlockParam | null> {
+  try {
+    const res = await fetch(url, { redirect: 'follow' });
+    if (!res.ok) return null;
+    const raw = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
+    const media: MediaType = (ALLOWED_MEDIA as readonly string[]).includes(raw)
+      ? (raw as MediaType)
+      : 'image/jpeg';
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength < 100 || buf.byteLength > 4_500_000) return null;
+    return { type: 'image', source: { type: 'base64', media_type: media, data: buf.toString('base64') } };
+  } catch {
+    return null;
+  }
+}
+
+export async function runAgent(
+  session: Session,
+  userText: string,
+  ctx: ToolContext,
+  imageUrls: string[] = [],
+): Promise<string> {
+  // Если клиент прислал фото — прикрепляем их к сообщению, чтобы модель «видела».
+  if (imageUrls.length) {
+    const blocks: Anthropic.ContentBlockParam[] = [];
+    for (const url of imageUrls) {
+      const b = await fetchImageBlock(url);
+      if (b) blocks.push(b);
+    }
+    blocks.push({
+      type: 'text',
+      text: userText || 'Клієнт надіслав фото. Подивись, що це за модель (бренд, тип, колір), і підбери схоже з нашого каталогу.',
+    });
+    session.messages.push({ role: 'user', content: blocks });
+  } else {
+    session.messages.push({ role: 'user', content: userText });
+  }
   trimHistory(session);
 
   let reply = '';
