@@ -202,6 +202,24 @@ export async function executeTool(
 
       case 'create_order': {
         const rawItems = Array.isArray(input.items) ? input.items : [];
+
+        // Защита от подмены модели: оформить можно ТОЛЬКО товар, который бот
+        // реально показал клиенту карточкой (реальное фото/расцветка) и клиент
+        // подтвердил. Если товар не показывался — просим сначала показать.
+        const notShown = (rawItems as Record<string, unknown>[])
+          .map((it) => String(it.slug || '').trim())
+          .filter((s) => s && !ctx.session.shownSlugs.has(s));
+        if (notShown.length) {
+          return JSON.stringify({
+            error: 'not_shown',
+            slugs: notShown,
+            message:
+              'Эти товары ты ещё НЕ показывал клиенту карточкой: ' +
+              notShown.join(', ') +
+              '. Сначала покажи именно их через send_product_card — чтобы клиент увидел реальное фото и расцветку и подтвердил, что это то самое, — и только потом оформляй заказ. НИКОГДА не оформляй модель/расцветку, которую не показывал.',
+          });
+        }
+
         const lines: { name: string; code: string; size: string; qty: number; price: number; sum: number; image: string | null }[] = [];
         let total = 0;
         for (const it of rawItems as Record<string, unknown>[]) {
