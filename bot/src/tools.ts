@@ -356,20 +356,17 @@ export async function executeTool(
           (comment ? `📝 <b>Коментар:</b> ${escapeHtml(comment)}\n` : '') +
           (!city || !warehouse ? `\n⚠️ <i>Уточнити доставку у клієнта.</i>` : '');
 
-        // Пишем заказ в учётную таблицу «Заказы»: одна строка = один товар.
-        // Дроп-цену и см берём из закрытого эндпоинта сайта (наружу не идут).
-        const dateStr = new Date().toLocaleDateString('uk-UA', {
-          timeZone: 'Europe/Kyiv',
-          day: '2-digit',
-          month: '2-digit',
-        });
+        // Пишем заказ в учётную таблицу: одна строка = один товар. Дату ставит
+        // сам скрипт таблицы. Дроп-цену и см берём из закрытого эндпоинта сайта.
+        // Строки пишем ПОСЛЕДОВАТЕЛЬНО — скрипт считает строку по счётчику A1,
+        // параллельные запросы могли бы попасть в одну строку.
         const np = npNumber(warehouse);
-        const sheetPromise = Promise.all(
-          lines.map(async (l) => {
+        const sheetTask = (async () => {
+          let anySaved = false;
+          for (const l of lines) {
             const meta = await fetchOrderMeta(l.code, l.size);
             const position = (l.qty > 1 ? `${l.qty} ` : '') + shortPosition(l.name);
-            return appendOrderRow({
-              date: dateStr,
+            const r = await appendOrderRow({
               name,
               city,
               np,
@@ -382,11 +379,12 @@ export async function executeTool(
               drop: meta.drop,
               price: l.price,
             }).catch(() => ({ saved: false }));
-          }),
-        ).catch(() => []);
+            if (r.saved) anySaved = true;
+          }
+          return anySaved;
+        })();
 
-        const [, sheetResults] = await Promise.all([notifyGroup(text, lines[0].image), sheetPromise]);
-        const savedToSheet = Array.isArray(sheetResults) && sheetResults.some((r) => r.saved);
+        const [, savedToSheet] = await Promise.all([notifyGroup(text, lines[0].image), sheetTask]);
         return JSON.stringify({
           ok: true,
           total,
