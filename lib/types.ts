@@ -33,6 +33,9 @@ export interface Product {
   mediaUrl: string | null;
   /** Внутреннее: индекс исходной строки листа (для сопоставления фото). Не для UI. */
   _row?: number;
+  /** Внутреннее: дроп-цена (закупка). НИКОГДА не отдаётся покупателю — удаляется
+   *  при сборке каталога и живёт только в Catalog.dropByCode для учёта заказов. */
+  _drop?: number;
 }
 
 export interface Section {
@@ -50,4 +53,7 @@ export interface Catalog {
   fetchedAt: number;
   /** Источник данных: 'live' | 'demo'. Для диагностики, не для UI покупателя. */
   source: 'live' | 'demo';
+  /** Внутреннее: код товара → дроп-цена. Только для учёта заказов (закрытый
+   *  эндпоинт /api/order-meta). НЕ сериализуется в публичные ответы. */
+  dropByCode?: Record<string, number>;
 }

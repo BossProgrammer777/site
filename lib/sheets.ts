@@ -91,7 +91,9 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
   }
 
   // Подставляем фото из манифеста (сгенерирован при сборке из папок Drive).
-  // Значение манифеста — уже готовый URL картинки. Затем чистим _row.
+  // Значение манифеста — уже готовый URL картинки. Собираем дроп-цены в приватную
+  // карту (для учёта заказов) и удаляем _row/_drop из товаров — наружу они не идут.
+  const dropByCode: Record<string, number> = {};
   for (const { sheet, products } of parsed) {
     const sheetPhotos = photoManifest[sheet.slug];
     for (const p of products) {
@@ -99,7 +101,9 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
         const url = sheetPhotos[String(p._row)];
         if (url) p.image = url;
       }
+      if (p.code && typeof p._drop === 'number') dropByCode[p.code] = p._drop;
       delete p._row;
+      delete p._drop;
     }
   }
 
@@ -107,5 +111,5 @@ export async function fetchLiveCatalog(): Promise<Catalog> {
   const sections = parsed.map(({ sheet, products }) =>
     buildSection(sheet, products.filter((p) => p.anyInStock)),
   );
-  return { sections, fetchedAt: Date.now(), source: 'live' };
+  return { sections, fetchedAt: Date.now(), source: 'live', dropByCode };
 }

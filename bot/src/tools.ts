@@ -13,9 +13,34 @@ import {
   type Product,
 } from './catalog.js';
 import { notifyGroup, escapeHtml } from './telegram.js';
-import { appendOrderToSheet } from './googleSheet.js';
+import { appendOrderRow } from './googleSheet.js';
+import { fetchOrderMeta } from './catalog.js';
 import type { Session } from './sessions.js';
 import type { Channel } from './channel.js';
+
+/** Короткая «позиция» для учётной таблицы: Б/С/Ф/Мяч + бренд+модель. */
+function shortPosition(name: string): string {
+  const n = (name || '').trim();
+  const low = n.toLowerCase();
+  let letter = '';
+  if (/^бутс/.test(low)) letter = 'Б';
+  else if (/^сороконіж|^сороконож/.test(low)) letter = 'С';
+  else if (/^футзал/.test(low)) letter = 'Ф';
+  else if (/м['’ʼ]?яч|мяч/.test(low)) letter = 'Мяч';
+  const rest = n
+    .replace(/^(бутси|бутсы|сороконіжки|сороконожки|футзалки|м['’ʼ]?ячі?|мяч[іи]?)\s*/i, '')
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(' ');
+  return (letter ? letter + ' ' : '') + rest;
+}
+
+/** № отделения Новой Почты из строки отделения. */
+function npNumber(warehouse: string): string {
+  const w = warehouse || '';
+  const m = w.match(/№\s*([0-9]+)/) || w.match(/(\d+)\s*$/) || w.match(/(\d+)/);
+  return m ? m[1] : '';
+}
 
 export interface ToolContext {
   recipientId: string;
@@ -331,30 +356,42 @@ export async function executeTool(
           (comment ? `📝 <b>Коментар:</b> ${escapeHtml(comment)}\n` : '') +
           (!city || !warehouse ? `\n⚠️ <i>Уточнити доставку у клієнта.</i>` : '');
 
-        // Дублируем заказ в Google-таблицу (те же колонки, что у сайта).
-        // Оплату кладём в комментарий, как это делает сайт.
-        const itemsSummary = lines
-          .map((l) => `${l.name} (${l.code})${l.size ? `, р.${l.size}` : ''} ×${l.qty}`)
-          .join('; ');
-        const sheetComment = [payment ? `Оплата: ${payment}` : '', 'Instagram Direct', comment]
-          .filter(Boolean)
-          .join(' · ');
-        const sheetPromise = appendOrderToSheet({
-          name,
-          phone,
-          city,
-          warehouse,
-          itemsSummary,
-          total,
-          comment: sheetComment,
-        }).catch(() => ({ saved: false }));
+        // Пишем заказ в учётную таблицу «Заказы»: одна строка = один товар.
+        // Дроп-цену и см берём из закрытого эндпоинта сайта (наружу не идут).
+        const dateStr = new Date().toLocaleDateString('uk-UA', {
+          timeZone: 'Europe/Kyiv',
+          day: '2-digit',
+          month: '2-digit',
+        });
+        const np = npNumber(warehouse);
+        const sheetPromise = Promise.all(
+          lines.map(async (l) => {
+            const meta = await fetchOrderMeta(l.code, l.size);
+            const position = (l.qty > 1 ? `${l.qty} ` : '') + shortPosition(l.name);
+            return appendOrderRow({
+              date: dateStr,
+              name,
+              city,
+              np,
+              phone,
+              project: 'BBaza',
+              supplier: 'FootballOpt',
+              position,
+              eu: l.size,
+              cm: meta.cm,
+              drop: meta.drop,
+              price: l.price,
+            }).catch(() => ({ saved: false }));
+          }),
+        ).catch(() => []);
 
-        const [, sheet] = await Promise.all([notifyGroup(text, lines[0].image), sheetPromise]);
+        const [, sheetResults] = await Promise.all([notifyGroup(text, lines[0].image), sheetPromise]);
+        const savedToSheet = Array.isArray(sheetResults) && sheetResults.some((r) => r.saved);
         return JSON.stringify({
           ok: true,
           total,
           total_text: uah(total),
-          saved_to_sheet: sheet.saved,
+          saved_to_sheet: savedToSheet,
           message: 'Заказ отправлен менеджерам. Подтверди клиенту и скажи, что менеджер свяжется для подтверждения и уточнения деталей доставки.',
         });
       }

@@ -34,6 +34,9 @@ export const config = {
     graphBase: optional('GRAPH_API_BASE', 'https://graph.instagram.com/v21.0').replace(/\/$/, ''),
   },
 
+  // Ключ к закрытому эндпоинту сайта /api/order-meta (дроп-цена + см для учёта).
+  orderMetaKey: optional('ORDER_META_KEY'),
+
   port: Number(optional('PORT', '8080')),
 
   // Необязательный пароль для веб-чата (тестовая страница /). Если задан —

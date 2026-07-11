@@ -174,3 +174,32 @@ export async function getProductById(id: string): Promise<Product | null> {
   const { byId } = await getCatalog();
   return byId.get(id) || null;
 }
+
+/**
+ * Дроп-цена (закупка) и см для размера — из закрытого эндпоинта сайта.
+ * Дроп наружу клиентам не идёт, только для учёта заказов в приватной таблице.
+ */
+export async function fetchOrderMeta(
+  code: string,
+  size: string,
+): Promise<{ drop: number | null; cm: number | null }> {
+  const key = config.orderMetaKey;
+  if (!key || !code) return { drop: null, cm: null };
+  try {
+    const res = await fetch(
+      `${config.siteUrl}/api/order-meta?code=${encodeURIComponent(code)}&size=${encodeURIComponent(size)}`,
+      {
+        headers: {
+          'x-order-key': key,
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+        },
+      },
+    );
+    if (!res.ok) return { drop: null, cm: null };
+    const d = (await res.json()) as { drop: number | null; cm: number | null };
+    return { drop: d.drop ?? null, cm: d.cm ?? null };
+  } catch {
+    return { drop: null, cm: null };
+  }
+}

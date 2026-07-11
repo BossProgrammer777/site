@@ -336,6 +336,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       anyInStock,
       mediaUrl,
       _row: r,
+      _drop: basePrice,
     };
     products.push(product);
     lastProduct = product;
