@@ -13,6 +13,7 @@ import {
   type Product,
 } from './catalog.js';
 import { notifyGroup, escapeHtml } from './telegram.js';
+import { appendOrderToSheet } from './googleSheet.js';
 import type { Session } from './sessions.js';
 import type { Channel } from './channel.js';
 
@@ -330,11 +331,30 @@ export async function executeTool(
           (comment ? `📝 <b>Коментар:</b> ${escapeHtml(comment)}\n` : '') +
           (!city || !warehouse ? `\n⚠️ <i>Уточнити доставку у клієнта.</i>` : '');
 
-        await notifyGroup(text, lines[0].image);
+        // Дублируем заказ в Google-таблицу (те же колонки, что у сайта).
+        // Оплату кладём в комментарий, как это делает сайт.
+        const itemsSummary = lines
+          .map((l) => `${l.name} (${l.code})${l.size ? `, р.${l.size}` : ''} ×${l.qty}`)
+          .join('; ');
+        const sheetComment = [payment ? `Оплата: ${payment}` : '', 'Instagram Direct', comment]
+          .filter(Boolean)
+          .join(' · ');
+        const sheetPromise = appendOrderToSheet({
+          name,
+          phone,
+          city,
+          warehouse,
+          itemsSummary,
+          total,
+          comment: sheetComment,
+        }).catch(() => ({ saved: false }));
+
+        const [, sheet] = await Promise.all([notifyGroup(text, lines[0].image), sheetPromise]);
         return JSON.stringify({
           ok: true,
           total,
           total_text: uah(total),
+          saved_to_sheet: sheet.saved,
           message: 'Заказ отправлен менеджерам. Подтверди клиенту и скажи, что менеджер свяжется для подтверждения и уточнения деталей доставки.',
         });
       }
