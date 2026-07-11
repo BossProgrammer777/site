@@ -74,8 +74,47 @@ export interface OrderRow {
   comment: string;
 }
 
-/** Добавляет строку заказа в таблицу. Возвращает {saved:false}, если не настроено. */
+/** Дата/время в формате Киева — первая колонка строки. */
+function kyivNow(): string {
+  return new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' });
+}
+
+/**
+ * Добавляет строку заказа в таблицу. Два способа:
+ *  1) ПРОСТОЙ (рекомендуется) — POST на Google Apps Script (SHEETS_WEBHOOK_URL).
+ *     Не нужен сервис-аккаунт: скрипт живёт в самой таблице.
+ *  2) Через сервис-аккаунт Google (GOOGLE_SERVICE_ACCOUNT_JSON).
+ * Если ни то, ни другое не настроено — тихо пропускаем.
+ */
 export async function appendOrderToSheet(order: OrderRow): Promise<{ saved: boolean }> {
+  // Способ 1 — вебхук Apps Script.
+  const webhookUrl = process.env.SHEETS_WEBHOOK_URL;
+  if (webhookUrl) {
+    try {
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: process.env.SHEETS_WEBHOOK_SECRET || '',
+          date: kyivNow(),
+          name: order.name,
+          phone: order.phone,
+          city: order.city,
+          warehouse: order.warehouse,
+          items: order.itemsSummary,
+          total: order.total,
+          comment: order.comment,
+        }),
+        redirect: 'follow',
+      });
+      return { saved: res.ok };
+    } catch (e) {
+      console.error('[sheet] webhook failed:', (e as Error).message);
+      return { saved: false };
+    }
+  }
+
+  // Способ 2 — сервис-аккаунт.
   const spreadsheetId = process.env.ORDERS_SPREADSHEET_ID || DEFAULT_SHEET_ID;
   const token = await getAccessToken().catch(() => null);
   if (!token) return { saved: false };
