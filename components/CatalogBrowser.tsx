@@ -186,15 +186,25 @@ const PAGE = 20;
 export function CatalogBrowser({
   sections,
   initialSections = [],
+  initialCats = [],
   initialBrands = [],
+  initialModels = [],
   initialSizes = [],
+  initialCountries = [],
   initialQuery = '',
+  initialPriceFrom,
+  initialPriceTo,
 }: {
   sections: Section[];
   initialSections?: string[];
+  initialCats?: string[];
   initialBrands?: string[];
+  initialModels?: string[];
   initialSizes?: string[];
+  initialCountries?: string[];
   initialQuery?: string;
+  initialPriceFrom?: number;
+  initialPriceTo?: number;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -226,15 +236,31 @@ export function CatalogBrowser({
   }, [items]);
 
   const [sel, setSel] = useState<Selection>({
-    categories: new Set(initialSections.flatMap(slugToCatKeys)),
+    categories: new Set([...initialSections.flatMap(slugToCatKeys), ...initialCats]),
     brands: new Set(initialBrands),
-    models: new Set(),
+    models: new Set(initialModels),
     sizes: new Set(initialSizes),
-    countries: new Set(),
+    countries: new Set(initialCountries),
     query: initialQuery,
-    priceFrom: priceBounds.min,
-    priceTo: priceBounds.max,
+    priceFrom: initialPriceFrom ?? priceBounds.min,
+    priceTo: initialPriceTo ?? priceBounds.max,
   });
+
+  // Синхронизируем выбранные фильтры с URL, чтобы ссылку можно было скинуть
+  // и она открылась с теми же фильтрами. Меняем адресную строку без перезагрузки.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (sel.categories.size) p.set('cat', [...sel.categories].join(','));
+    if (sel.brands.size) p.set('brand', [...sel.brands].join(','));
+    if (sel.models.size) p.set('model', [...sel.models].join(','));
+    if (sel.sizes.size) p.set('size', [...sel.sizes].join(','));
+    if (sel.countries.size) p.set('country', [...sel.countries].join(','));
+    if (sel.query.trim()) p.set('q', sel.query.trim());
+    if (sel.priceFrom > priceBounds.min) p.set('pmin', String(sel.priceFrom));
+    if (sel.priceTo < priceBounds.max) p.set('pmax', String(sel.priceTo));
+    const qs = p.toString();
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
+  }, [sel, priceBounds.min, priceBounds.max]);
   const [visible, setVisible] = useState(PAGE);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name'>('default');

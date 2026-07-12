@@ -19,15 +19,21 @@ export function generateMetadata({ params }: { params: { lang: Locale } }): Meta
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: { section?: string; brand?: string; q?: string; size?: string };
+  searchParams: {
+    section?: string;
+    cat?: string;
+    brand?: string;
+    model?: string;
+    size?: string;
+    country?: string;
+    q?: string;
+    pmin?: string;
+    pmax?: string;
+  };
 }) {
   const catalog = await getCatalog();
-  const initialSections = searchParams.section ? searchParams.section.split(',') : [];
-  const initialBrands = searchParams.brand ? searchParams.brand.split(',') : [];
-  const initialSizes = searchParams.size
-    ? searchParams.size.split(',').map((s) => s.trim()).filter(Boolean)
-    : [];
-  const initialQuery = searchParams.q || '';
+  const split = (v?: string) =>
+    v ? v.split(',').map((s) => s.trim()).filter(Boolean) : [];
 
   return (
     <>
@@ -36,10 +42,15 @@ export default async function CatalogPage({
         <h1 className="mb-6 text-2xl font-extrabold sm:text-3xl">Каталог</h1>
         <CatalogBrowser
           sections={catalog.sections}
-          initialSections={initialSections}
-          initialBrands={initialBrands}
-          initialSizes={initialSizes}
-          initialQuery={initialQuery}
+          initialSections={split(searchParams.section)}
+          initialCats={split(searchParams.cat)}
+          initialBrands={split(searchParams.brand)}
+          initialModels={split(searchParams.model)}
+          initialSizes={split(searchParams.size)}
+          initialCountries={split(searchParams.country)}
+          initialQuery={searchParams.q || ''}
+          initialPriceFrom={searchParams.pmin ? Number(searchParams.pmin) : undefined}
+          initialPriceTo={searchParams.pmax ? Number(searchParams.pmax) : undefined}
         />
       </main>
       <SiteFooter />
