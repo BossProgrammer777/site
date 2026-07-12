@@ -32,7 +32,6 @@ export function generateMetadata({ params }: { params: { lang: string } }): Meta
       description,
       locale: ru ? 'ru_RU' : 'uk_UA',
       alternateLocale: ru ? ['uk_UA'] : ['ru_RU'],
-      images: ['/logo.svg'],
     },
     twitter: { card: 'summary_large_image', title: 'Bootsbaza', description },
     verification: { google: '8jvtfF3c49laHUT7E3hunGPodjAonoEn4ZhQPq5pFFw' },
