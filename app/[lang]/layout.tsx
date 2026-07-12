@@ -35,6 +35,7 @@ export function generateMetadata({ params }: { params: { lang: string } }): Meta
       images: ['/logo.svg'],
     },
     twitter: { card: 'summary_large_image', title: 'Bootsbaza', description },
+    verification: { google: '8jvtfF3c49laHUT7E3hunGPodjAonoEn4ZhQPq5pFFw' },
   };
 }
 
