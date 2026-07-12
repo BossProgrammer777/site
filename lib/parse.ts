@@ -254,8 +254,30 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
     const hasName = !!nameCell.text;
     const basePrice = parsePrice(priceCell);
 
-    // Строка-разделитель подкатегории: текст в колонке A (фото), без кода/цены/названия.
-    const separatorText = photoCell.text;
+    // Строка-разделитель подкатегории (баннер модели, напр. «Nike Tiempo»): без
+    // кода/цены/названия/фото. Текст-метку ищем сначала в колонке A (Фото), а если
+    // пусто — в любой «не-данными» колонке (метка может оказаться в Медіа и т.п.
+    // из-за объединённых ячеек). Колонки размеров/кол-ва/цены исключаем.
+    const dataCols = new Set<number>([
+      cols.code,
+      cols.name,
+      cols.price,
+      cols.photo,
+      cols.gearSize,
+      cols.quantity,
+      ...cols.sizeCols.map((c) => c.index),
+    ]);
+    let separatorText = photoCell.text;
+    if (!separatorText) {
+      for (let i = 0; i < row.length; i++) {
+        if (dataCols.has(i)) continue;
+        const t = (row[i]?.text || '').trim();
+        if (t) {
+          separatorText = t;
+          break;
+        }
+      }
+    }
     const isSeparator =
       !!separatorText && !hasCode && !hasName && basePrice === 0 && !photoCell.imageUrl;
     if (isSeparator) {
