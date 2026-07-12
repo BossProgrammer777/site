@@ -19,11 +19,14 @@ export function generateMetadata({ params }: { params: { lang: Locale } }): Meta
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: { section?: string; brand?: string; q?: string };
+  searchParams: { section?: string; brand?: string; q?: string; size?: string };
 }) {
   const catalog = await getCatalog();
-  const initialSections = searchParams.section ? [searchParams.section] : [];
-  const initialBrands = searchParams.brand ? [searchParams.brand] : [];
+  const initialSections = searchParams.section ? searchParams.section.split(',') : [];
+  const initialBrands = searchParams.brand ? searchParams.brand.split(',') : [];
+  const initialSizes = searchParams.size
+    ? searchParams.size.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
   const initialQuery = searchParams.q || '';
 
   return (
@@ -35,6 +38,7 @@ export default async function CatalogPage({
           sections={catalog.sections}
           initialSections={initialSections}
           initialBrands={initialBrands}
+          initialSizes={initialSizes}
           initialQuery={initialQuery}
         />
       </main>

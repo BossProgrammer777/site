@@ -15,8 +15,41 @@ import {
 import { notifyGroup, escapeHtml } from './telegram.js';
 import { appendOrderRow } from './googleSheet.js';
 import { fetchOrderMeta } from './catalog.js';
+import { config } from './config.js';
 import type { Session } from './sessions.js';
 import type { Channel } from './channel.js';
+
+/** Слово-категория → slug раздела каталога (для ссылки с фильтрами). */
+function categorySlug(word: string): string | null {
+  const t = (word || '').toLowerCase();
+  if (/бутс/.test(t)) return 'butsy';
+  if (/сороконіж|сороконож|багатошип|многошип/.test(t)) return 'sorokonizhky';
+  if (/футзал/.test(t)) return 'futzalky';
+  if (/дитяч|детс|ребен|дітей/.test(t)) return 'dytiache-vzuttia';
+  if (/гетр|шкарпет|носк|щитк|воротар|вратар|термо|сумк|мяч|м['’ʼ]?яч|екіп|экип|аксес/.test(t))
+    return 'ekipiruvannia';
+  return null;
+}
+
+/** Слово-бренд → каноническое имя бренда (как в фасете каталога). */
+function canonBrand(word: string): string | null {
+  const t = (word || '').toLowerCase();
+  if (/new balance|нью ?баланс/.test(t)) return 'New Balance';
+  if (/nike|найк/.test(t)) return 'Nike';
+  if (/adidas|ад[іи]дас/.test(t)) return 'Adidas';
+  if (/puma|пума/.test(t)) return 'Puma';
+  if (/mizuno|м[іи]зуно/.test(t)) return 'Mizuno';
+  if (/joma|джома/.test(t)) return 'Joma';
+  if (/under armour|андер армор/.test(t)) return 'Under Armour';
+  if (/umbro|умбро/.test(t)) return 'Umbro';
+  if (/kelme|кельме/.test(t)) return 'Kelme';
+  if (/diadora|діадора/.test(t)) return 'Diadora';
+  if (/lotto|лотто/.test(t)) return 'Lotto';
+  if (/asics|ас[іи]кс/.test(t)) return 'Asics';
+  if (/reebok|р[іи]бок/.test(t)) return 'Reebok';
+  if (/nivia|н[іи]в[іи]а/.test(t)) return 'Nivia';
+  return null;
+}
 
 /** Короткая «позиция» для учётной таблицы: Б/С/Ф/Мяч + бренд+модель. */
 function shortPosition(name: string): string {
@@ -127,6 +160,25 @@ export const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'catalog_link',
+    description:
+      'Собрать ссылку на каталог сайта с уже выбранными фильтрами (категория, бренд, размер). ' +
+      'Используй для ШИРОКИХ запросов — когда клиент назвал категорию (и, возможно, бренд/размер), но НЕ конкретную модель ' +
+      '(напр. «бутси найк 43», «футзалки адідас», «дитячі бутси 35»). Пришли клиенту эту ОДНУ ссылку, чтобы он посмотрел все варианты на сайте, а не кучей карточек.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          description: 'категория словами: бутсы / сороконожки / футзалки / детские / щитки / гетры / мячи / вратарское и т.п.',
+        },
+        brand: { type: 'string', description: 'бренд (nike/adidas/puma…), если назван' },
+        size: { type: 'string', description: 'размер EU, если назван' },
+        query: { type: 'string', description: 'свободный текст, если не подходит под категорию/бренд' },
+      },
     },
   },
   {
@@ -272,6 +324,24 @@ export async function executeTool(
         const p = await getProductBySlug(String(input.slug || ''));
         if (!p) return JSON.stringify({ error: 'Товар не найден' });
         return JSON.stringify({ product: productBrief(p) });
+      }
+
+      case 'catalog_link': {
+        const params = new URLSearchParams();
+        const slug = input.category ? categorySlug(String(input.category)) : null;
+        const brand = input.brand ? canonBrand(String(input.brand)) : null;
+        const size = String(input.size || '').trim();
+        const query = String(input.query || '').trim();
+        if (slug) params.set('section', slug);
+        if (brand) params.set('brand', brand);
+        if (size) params.set('size', size);
+        if (query && !slug && !brand) params.set('q', query);
+        const qs = params.toString();
+        const url = `${config.siteUrl}/catalog${qs ? '?' + qs : ''}`;
+        return JSON.stringify({
+          url,
+          note: 'Отправь клиенту ЭТУ ссылку в тексте (Instagram сам сделает её кликабельной) и предложи выбрать вариант на сайте. НЕ шли карточки для этого запроса.',
+        });
       }
 
       case 'send_product_card': {

@@ -187,11 +187,13 @@ export function CatalogBrowser({
   sections,
   initialSections = [],
   initialBrands = [],
+  initialSizes = [],
   initialQuery = '',
 }: {
   sections: Section[];
   initialSections?: string[];
   initialBrands?: string[];
+  initialSizes?: string[];
   initialQuery?: string;
 }) {
   const t = useT();
@@ -227,7 +229,7 @@ export function CatalogBrowser({
     categories: new Set(initialSections.flatMap(slugToCatKeys)),
     brands: new Set(initialBrands),
     models: new Set(),
-    sizes: new Set(),
+    sizes: new Set(initialSizes),
     countries: new Set(),
     query: initialQuery,
     priceFrom: priceBounds.min,
