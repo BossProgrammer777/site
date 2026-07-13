@@ -272,7 +272,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
     // Строка-разделитель подкатегории (баннер модели, напр. «Nike Tiempo»): без
     // кода/цены/названия/фото. Текст-метку ищем сначала в колонке A (Фото), а если
     // пусто — в любой «не-данными» колонке (метка может оказаться в Медіа и т.п.
-    // из-за объединённых ячеек). Колонки размеров/кол-ва/цены исключаем.
+    // из-за объединённых ячеек). Колонки размеров/сетки/кол-ва/цены исключаем.
     const dataCols = new Set<number>([
       cols.code,
       cols.name,
@@ -280,6 +280,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       cols.photo,
       cols.gearSize,
       cols.quantity,
+      ...cols.sizeGrid,
       ...cols.sizeCols.map((c) => c.index),
     ]);
     let separatorText = photoCell.text;
@@ -293,8 +294,18 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
         }
       }
     }
+    // Строка-продолжение товара (доп. размеры экипировки, напр. вратарские
+    // перчатки 7–10) несёт размер/сетку — её нельзя принимать за разделитель.
+    const hasGearData =
+      (cols.gearSize >= 0 && !!cellAt(row, cols.gearSize).text) ||
+      cols.sizeGrid.some((idx) => !!cellAt(row, idx).text);
     const isSeparator =
-      !!separatorText && !hasCode && !hasName && basePrice === 0 && !photoCell.imageUrl;
+      !!separatorText &&
+      !hasCode &&
+      !hasName &&
+      basePrice === 0 &&
+      !photoCell.imageUrl &&
+      !hasGearData;
     if (isSeparator) {
       currentGroup = separatorText;
       lastProduct = null;
