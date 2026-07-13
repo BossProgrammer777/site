@@ -292,7 +292,9 @@ export async function executeTool(
         // расцветку и слить клиента — поэтому берём широко (relaxed) и много.
         const query = String(input.query || '');
         const coverage = String(input.coverage || '');
-        const MAX_CANDIDATES = 40;
+        // Фильтр по типу покрытия уже сужает набор до одного типа модели, поэтому
+        // 20 расцветок обычно покрывают всё, а расход токенов держим в узде.
+        const MAX_CANDIDATES = 20;
         let pool = (await searchProducts(query, 120, { relaxed: true })).filter((p) => p.anyInStock);
         // Режем по типу покрытия (бутси/сороконіжки/футзалки), если модель его
         // определила по фото — тогда покажем ВСЕ расцветки именно нужного типа.
