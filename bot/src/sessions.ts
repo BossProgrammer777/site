@@ -17,6 +17,11 @@ export interface Session {
   muted: boolean;
   // Простая очередь, чтобы два сообщения подряд не запускали петлю параллельно.
   lock: Promise<void>;
+  // Буфер для склейки сообщений, пришедших подряд (фото + подпись «Такі?» и т.п.),
+  // чтобы отвечать одним сообщением, а не на каждое событие отдельно.
+  pendingTexts: string[];
+  pendingImages: string[];
+  pendingTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const SESSIONS = new Map<string, Session>();
@@ -40,6 +45,9 @@ export function getSession(senderId: string): Session {
       nonBuyStrikes: 0,
       muted: false,
       lock: Promise.resolve(),
+      pendingTexts: [],
+      pendingImages: [],
+      pendingTimer: null,
     };
     SESSIONS.set(senderId, s);
   }

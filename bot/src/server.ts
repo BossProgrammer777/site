@@ -114,6 +114,9 @@ app.get('/webhook', (req: Request, res: Response) => {
   }
 });
 
+// Пауза для склейки сообщений, пришедших подряд (фото + подпись), в один ответ.
+const MESSAGE_DEBOUNCE_MS = 2500;
+
 // --- Входящие сообщения -------------------------------------------------------
 app.post('/webhook', (req: Request, res: Response) => {
   if (!instagramConfigured()) {
@@ -160,16 +163,28 @@ app.post('/webhook', (req: Request, res: Response) => {
       if (session.muted) continue; // молчим — модель не запускаем, деньги не тратим
     }
 
-    runExclusive(session, async () => {
-      try {
-        await markSeen(senderId);
-        await typingOn(senderId);
-        const reply = await runAgent(
-          session,
-          text,
-          { recipientId: senderId, session, channel: instagramChannel },
-          imageUrls,
-        );
+    // Склейка: копим сообщение в буфер и ждём короткую паузу — вдруг клиент шлёт
+    // фото и подпись «Такі?» двумя событиями. Обрабатываем всё вместе одним ответом.
+    if (text) session.pendingTexts.push(text);
+    if (imageUrls.length) session.pendingImages.push(...imageUrls);
+    markSeen(senderId).catch(() => undefined);
+    typingOn(senderId).catch(() => undefined);
+    if (session.pendingTimer) clearTimeout(session.pendingTimer);
+    session.pendingTimer = setTimeout(() => {
+      session.pendingTimer = null;
+      const combinedText = session.pendingTexts.join('\n').trim();
+      const combinedImages = session.pendingImages.slice();
+      session.pendingTexts = [];
+      session.pendingImages = [];
+      runExclusive(session, async () => {
+        try {
+          await typingOn(senderId);
+          const reply = await runAgent(
+            session,
+            combinedText,
+            { recipientId: senderId, session, channel: instagramChannel },
+            combinedImages,
+          );
         if (reply) {
           await sendText(senderId, reply);
         } else if (!session.paused) {
@@ -185,7 +200,8 @@ app.post('/webhook', (req: Request, res: Response) => {
           'Вибачте, стався технічний збій. Спробуйте, будь ласка, ще раз — або напишіть «менеджер», і з вами зв’яжеться людина.',
         ).catch(() => undefined);
       }
-    });
+      });
+    }, MESSAGE_DEBOUNCE_MS);
   }
 });
 
