@@ -15,7 +15,7 @@ import {
   typingOn,
   subscribeToMessages,
 } from './instagram.js';
-import { getSession, runExclusive } from './sessions.js';
+import { getSession, runExclusive, logHandoff } from './sessions.js';
 import { hasBuyingSignal, isClearJunk } from './intent.js';
 import { runAgent } from './agent.js';
 import { runDiagnostic } from './tools.js';
@@ -147,6 +147,7 @@ app.post('/webhook', (req: Request, res: Response) => {
       console.error(`[handoff] менеджер вернул бота для ${e.partnerId}`);
     } else {
       session.paused = true; // менеджер вмешался — бот молчит
+      logHandoff(session, `Менеджер: ${e.text || '[вкладення]'}`);
       console.error(`[handoff] менеджер ответил вручную — бот на паузе для ${e.partnerId}`);
     }
   }
@@ -165,10 +166,12 @@ app.post('/webhook', (req: Request, res: Response) => {
       continue;
     }
 
-    // Диалог переведён на живого менеджера — бот молчит и НЕ спамит группу
-    // (менеджер ведёт переписку прямо в Direct). В ТГ уходят только заказы и
-    // сам запрос менеджера.
-    if (session.paused) continue;
+    // Диалог переведён на живого менеджера — бот молчит, НО запоминает реплики
+    // клиента, чтобы после возврата (`!бот`) продолжить с полным контекстом.
+    if (session.paused) {
+      logHandoff(session, `Клієнт: ${text || '[фото]'}`);
+      continue;
+    }
 
     // Антитролль: не тратим деньги на тех, кто явно не за покупкой.
     // Есть намёк на покупку (или фото) → работаем и сбрасываем счётчики.
@@ -199,10 +202,21 @@ app.post('/webhook', (req: Request, res: Response) => {
         try {
           // Менеджер мог вмешаться, пока копилось сообщение — тогда молчим.
           if (session.paused) return;
+          // Если пока бот молчал, с клиентом общался менеджер — добавляем эту
+          // часть переписки в контекст, чтобы бот продолжил осознанно.
+          let contextText = combinedText;
+          if (session.handoffLog.length) {
+            const log = session.handoffLog.join('\n');
+            session.handoffLog = [];
+            contextText =
+              `[Поки тебе не було, з клієнтом спілкувався живий менеджер. Ось ця частина розмови:\n${log}\n` +
+              `Продовж діалог з урахуванням цього, не повторюй те, що вже сказав менеджер, і не вітайся заново.]` +
+              (combinedText ? `\n\n${combinedText}` : '');
+          }
           await typingOn(senderId);
           const reply = await runAgent(
             session,
-            combinedText,
+            contextText,
             { recipientId: senderId, session, channel: instagramChannel },
             combinedImages,
           );

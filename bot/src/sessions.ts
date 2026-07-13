@@ -22,6 +22,9 @@ export interface Session {
   pendingTexts: string[];
   pendingImages: string[];
   pendingTimer: ReturnType<typeof setTimeout> | null;
+  // Пока бот на паузе (менеджер ведёт диалог) — сюда пишем реплики клиента и
+  // менеджера, чтобы после возврата бот продолжил с полным контекстом.
+  handoffLog: string[];
 }
 
 const SESSIONS = new Map<string, Session>();
@@ -48,6 +51,7 @@ export function getSession(senderId: string): Session {
       pendingTexts: [],
       pendingImages: [],
       pendingTimer: null,
+      handoffLog: [],
     };
     SESSIONS.set(senderId, s);
   }
@@ -71,6 +75,14 @@ export function trimHistory(s: Session): void {
   }
   if (start >= s.messages.length) return; // не нашли безопасную точку — не трогаем
   s.messages = s.messages.slice(start);
+}
+
+/** Пишет строку в лог передачи менеджеру (с ограничением — храним последние 40). */
+export function logHandoff(s: Session, line: string): void {
+  const t = line.trim();
+  if (!t) return;
+  s.handoffLog.push(t);
+  if (s.handoffLog.length > 40) s.handoffLog.splice(0, s.handoffLog.length - 40);
 }
 
 /** Ставит задачу в очередь пользователя (последовательная обработка). */
