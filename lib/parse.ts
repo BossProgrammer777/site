@@ -245,6 +245,25 @@ function cellAt(row: Cell[], idx: number): Cell {
   return row[idx] ?? { text: '', imageUrl: null, num: null, hyperlink: null };
 }
 
+/** Похоже ли на замер под конкретный размер экипировки (обхват долоні, зріст…). */
+function isMeasureText(s: string): boolean {
+  return /\d/.test(s) && /(см|мм|обхват|зріст|рост|довжин|длин)/iu.test(s);
+}
+
+/**
+ * Замер размера из строки (для экипировки): «Обхват долоні 16 см.»,
+ * «На зріст 160-170 см.». Ищем в колонках примечаний и размерной сетки.
+ * Возвращает '' если строка не содержит замера.
+ */
+function rowMeasure(row: Cell[], cols: ColumnMap): string {
+  const candidates: string[] = [cellAt(row, cols.notes).text, ...cols.sizeGrid.map((idx) => cellAt(row, idx).text)];
+  for (const c of candidates) {
+    const s = c.replace(/\s+/g, ' ').trim();
+    if (isMeasureText(s)) return s;
+  }
+  return '';
+}
+
 // ---------------------------------------------------------------------------
 // Основной парсер
 // ---------------------------------------------------------------------------
@@ -324,7 +343,8 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
     ) {
       const label = cellAt(row, cols.gearSize).text;
       const qty = cols.quantity >= 0 ? parseQty(cellAt(row, cols.quantity)) : 0;
-      lastProduct.sizes.push({ label, qty, inStock: qty > 0 });
+      const hint = rowMeasure(row, cols);
+      lastProduct.sizes.push({ label, qty, inStock: qty > 0, ...(hint ? { hint } : {}) });
       lastProduct.anyInStock = lastProduct.sizes.some((s) => s.inStock);
       continue;
     }
@@ -342,7 +362,8 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
     } else if (cols.gearSize >= 0) {
       const label = cellAt(row, cols.gearSize).text || 'Розмір';
       const qty = cols.quantity >= 0 ? parseQty(cellAt(row, cols.quantity)) : 1;
-      sizes = [{ label, qty, inStock: qty > 0 }];
+      const hint = rowMeasure(row, cols);
+      sizes = [{ label, qty, inStock: qty > 0, ...(hint ? { hint } : {}) }];
     } else {
       sizes = [];
     }
@@ -354,8 +375,14 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       .filter(Boolean);
 
     // Примечания + состав (экипировка). Внутренние пометки поставщика
-    // (мин. РРЦ/МРЦ — рекомендованная цена) вырезаем, чтобы не показывать клиенту.
-    const noteParts = [cellAt(row, cols.notes).text, cellAt(row, cols.material).text]
+    // (мин. РРЦ/МРЦ — рекомендованная цена) вырезаем. Если замер размера
+    // (обхват долоні/зріст) вынесен в размерную таблицу — не дублируем его в примечаниях.
+    const sizeHasHints = sizes.some((s) => s.hint);
+    const notesText = cellAt(row, cols.notes).text;
+    const noteParts = [
+      sizeHasHints && isMeasureText(notesText) ? '' : notesText,
+      cellAt(row, cols.material).text,
+    ]
       .map((s) => stripSupplierNotes(s))
       .filter(Boolean);
     const notes = noteParts.length ? noteParts.join(' • ') : null;

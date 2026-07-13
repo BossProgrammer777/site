@@ -16,6 +16,14 @@ function folderId(url: string | null): string | null {
   return m ? m[1] : null;
 }
 
+// Разбивает замер «Обхват долоні 16 см.» на название («Обхват долоні») и
+// значение («16 см.») для таблицы размеров экипировки.
+function splitMeasure(hint: string): { name: string; value: string } {
+  const m = hint.match(/^(.*?)(\d[\d.,\s–-]*\s*(?:см|мм)?\.?)\s*$/iu);
+  if (m && m[1].trim()) return { name: m[1].replace(/[:\-–\s]+$/u, '').trim(), value: m[2].trim() };
+  return { name: '', value: hint };
+}
+
 // Ключ сообщения об отправке по времени Киева:
 //  Пн–Пт до 16:00 та Сб до 12:00 → сьогодні;
 //  Пн–Пт після 16:00 → наступного робочого дня;
@@ -334,8 +342,73 @@ export function ProductDetail({ product }: { product: Product }) {
           <p className="mt-5 rounded-xl bg-ink-900/60 p-3 text-sm [color:#9fb3a6]">{product.notes}</p>
         )}
 
+        {/* Размерная таблица экипировки: размер → замер (обхват долоні / зріст). */}
+        {product.sizes.some((s) => s.hint) && (
+          <div className="mt-6">
+            <h2 className="mb-1 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">
+              {t.product.sizeChart}
+            </h2>
+            <p className="mb-2 text-xs [color:#7d8f83]">{t.product.sizeChartHint}</p>
+            <div className="overflow-x-auto rounded-xl border border-ink-800">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b border-ink-800 [color:#7d8f83]">
+                    <th className="px-3 py-1.5 font-semibold">{t.product.size}</th>
+                    <th className="px-3 py-1.5 font-semibold">
+                      {splitMeasure(product.sizes.find((s) => s.hint)!.hint!).name || t.product.sizeChart}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {product.sizes
+                    .filter((s) => s.hint)
+                    .map((s) => {
+                      const highlighted = s.label === size;
+                      const selectable = s.inStock;
+                      const { value } = splitMeasure(s.hint!);
+                      return (
+                        <tr
+                          key={s.label}
+                          onClick={() => selectable && setSize(s.label)}
+                          title={
+                            selectable
+                              ? `Обрати розмір ${s.label}`
+                              : `Розмір ${s.label}: немає в наявності`
+                          }
+                          className={
+                            'border-b border-ink-800 last:border-0 transition ' +
+                            (highlighted ? 'bg-brand/20 ' : 'odd:bg-ink-900/40 ') +
+                            (selectable ? 'cursor-pointer hover:bg-brand/10 ' : 'opacity-45 ')
+                          }
+                        >
+                          <td
+                            className={
+                              'whitespace-nowrap px-3 py-1.5 font-semibold ' +
+                              (highlighted ? 'text-brand' : '[color:#c3d3c8]') +
+                              (selectable ? '' : ' line-through')
+                            }
+                          >
+                            {s.label}
+                          </td>
+                          <td
+                            className={
+                              'whitespace-nowrap px-3 py-1.5 ' +
+                              (highlighted ? 'font-semibold text-brand' : '[color:#c3d3c8]')
+                            }
+                          >
+                            {value}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Размерная сетка (интерактивная) */}
-        {product.sizeGrid.length > 0 && (
+        {!product.sizes.some((s) => s.hint) && product.sizeGrid.length > 0 && (
           <div className="mt-6">
             <h2 className="mb-1 text-sm font-bold uppercase tracking-wide [color:#c3d3c8]">
               {t.product.sizeChart}

@@ -8,6 +8,8 @@ export interface SizeAvailability {
   qty: number;
   /** Удобный флаг для UI. */
   inStock: boolean;
+  /** Подпись-размер для экипировки: «Обхват долоні 16 см.», «На зріст 160-170 см.» */
+  hint?: string;
 }
 
 export interface Product {
