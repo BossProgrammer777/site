@@ -142,7 +142,7 @@ async function catalogImageBlock(url: string): Promise<Anthropic.ImageBlockParam
     if (!res.ok) return null;
     const input = Buffer.from(await res.arrayBuffer());
     if (input.byteLength < 100) return null;
-    const out = await sharp(input)
+    const out = await sharp(input, { failOn: 'none' })
       .rotate()
       .resize({ width: 768, height: 768, fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 72 })
