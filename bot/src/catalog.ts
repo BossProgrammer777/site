@@ -141,19 +141,30 @@ function wordMatches(hay: string, w: string): boolean {
  * Поиск товаров: товар должен содержать все слова запроса (в любом порядке,
  * с учётом синонимов) в названии/подкатегории/коде/стране. Ранжируем совпадения
  * с начала названия и наличие выше. Возвращаем максимум `limit`.
+ *
+ * `relaxed` — «мягкий» режим для фото-поиска: не требуем совпадения ВСЕХ слов
+ * (клиент/модель могут добавить цвет, которого нет в названии — расцветка видна
+ * только на картинке). Достаточно совпадения половины слов; ранжируем по числу
+ * совпавших. Так мы соберём ВСЕ расцветки модели, а цвет модель выберет глазами.
  */
-export async function searchProducts(query: string, limit = 6): Promise<Product[]> {
+export async function searchProducts(
+  query: string,
+  limit = 6,
+  opts: { relaxed?: boolean } = {},
+): Promise<Product[]> {
   const q = norm(query);
   if (!q) return [];
   const words = q.split(' ').filter(Boolean);
   const { products } = await getCatalog();
+  const need = opts.relaxed ? Math.max(1, Math.ceil(words.length / 2)) : words.length;
 
   const scored: { p: Product; score: number }[] = [];
   for (const p of products) {
     const hay = norm(`${p.name} ${p.group || ''} ${p.code || ''} ${p.country || ''}`);
-    if (!words.every((w) => wordMatches(hay, w))) continue;
+    const matched = words.filter((w) => wordMatches(hay, w)).length;
+    if (matched < need) continue;
     const name = norm(p.name);
-    let score = 0;
+    let score = matched * 40; // больше совпавших слов — выше (важно для relaxed)
     if (name.startsWith(q)) score += 100;
     if (name.includes(q)) score += 50;
     if (norm(p.group || '').includes(q)) score += 20;
