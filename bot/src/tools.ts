@@ -465,10 +465,9 @@ export async function executeTool(
         for (const slug of slugs) {
           const p = await getProductBySlug(slug);
           if (!p) continue;
-          const img = productImage(p);
+          // Шлём ТОЛЬКО ссылку с ценой — её превью в Instagram само показывает фото
+          // товара. Отдельное фото-вложение не шлём, чтобы не было дубля картинки.
           const text = `${p.name}\n${uah(p.finalPrice)}\n${productLink(p)}`;
-          // Вложение и текст в IG — разные посылки, отправляем по очереди.
-          if (img) await ctx.channel.sendImage(ctx.recipientId, img);
           await ctx.channel.sendText(ctx.recipientId, text);
           ctx.session.shownSlugs.add(slug);
           sent.push(slug);
