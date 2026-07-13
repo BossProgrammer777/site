@@ -225,6 +225,21 @@ function parseQty(cell: Cell): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Чистит примечание от внутренних пометок поставщика — минимальной РРЦ/МРЦ
+ * (рекомендованная розничная цена), которую нельзя показывать покупателю.
+ * Напр. «Мінімальна РРЦ 226 грн Тривалість дії…» → «Тривалість дії…».
+ */
+function stripSupplierNotes(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    // «(Мінімальна/Минимальная/мін./мин.) РРЦ/МРЦ [:-] 226 (грн)»
+    .replace(/(?:(?:мінімальн|минимальн|мін|мин)\p{L}*\.?\s*)?(?:ррц|мрц)\s*[:\-–]?\s*\d[\d\s.,]*\s*(?:грн\.?)?/giu, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s•·,\-–—]+|[\s•·,\-–—]+$/g, '')
+    .trim();
+}
+
 function cellAt(row: Cell[], idx: number): Cell {
   if (idx < 0) return { text: '', imageUrl: null, num: null, hyperlink: null };
   return row[idx] ?? { text: '', imageUrl: null, num: null, hyperlink: null };
@@ -327,9 +342,10 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    // Примечания + состав (экипировка).
+    // Примечания + состав (экипировка). Внутренние пометки поставщика
+    // (мин. РРЦ/МРЦ — рекомендованная цена) вырезаем, чтобы не показывать клиенту.
     const noteParts = [cellAt(row, cols.notes).text, cellAt(row, cols.material).text]
-      .map((s) => s.replace(/\s+/g, ' ').trim())
+      .map((s) => stripSupplierNotes(s))
       .filter(Boolean);
     const notes = noteParts.length ? noteParts.join(' • ') : null;
 
