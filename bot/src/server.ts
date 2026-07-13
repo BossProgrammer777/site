@@ -15,6 +15,7 @@ import {
 import { getSession, runExclusive } from './sessions.js';
 import { hasBuyingSignal, isClearJunk } from './intent.js';
 import { runAgent } from './agent.js';
+import { runDiagnostic } from './tools.js';
 import { instagramChannel, type Channel } from './channel.js';
 import { startTokenRefresh } from './igToken.js';
 import { WEBCHAT_HTML } from './webchat.js';
@@ -73,6 +74,13 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     return;
   }
 
+  // Диагностика фото-поиска (для теста): «!diag <модель>».
+  if (/^!diag\b/i.test(text)) {
+    const report = await runDiagnostic(text.replace(/^!diag\b/i, '').trim());
+    res.json({ reply: report, cards: [], paused: false });
+    return;
+  }
+
   const session = getSession(`web:${id}`);
   // Канал, который собирает карточки товаров, чтобы вернуть их странице.
   const cards: ({ kind: 'image'; url: string } | { kind: 'text'; text: string })[] = [];
@@ -124,6 +132,16 @@ app.post('/webhook', (req: Request, res: Response) => {
   const incoming = parseIncoming(req.body);
   for (const { senderId, text, imageUrls } of incoming) {
     const session = getSession(senderId);
+
+    // Диагностика фото-поиска (для владельца): «!diag <модель>» в Директе.
+    if (/^!diag\b/i.test(text || '')) {
+      const q = text.replace(/^!diag\b/i, '').trim();
+      runExclusive(session, async () => {
+        const report = await runDiagnostic(q);
+        await sendText(senderId, report).catch(() => undefined);
+      });
+      continue;
+    }
 
     // Диалог переведён на живого менеджера — бот молчит и НЕ спамит группу
     // (менеджер ведёт переписку прямо в Direct). В ТГ уходят только заказы и

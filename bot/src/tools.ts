@@ -327,6 +327,11 @@ export async function executeTool(
           if (typed.length) pool = typed;
         }
         const found = pool.slice(0, MAX_CANDIDATES);
+        // Диагностика: видно в логах Render, ЧТО именно запросила модель и какие
+        // коды к ней попали (чтобы отличить проблему поиска от ошибки модели).
+        console.error(
+          `[match_photo] q=${JSON.stringify(query)} cov=${JSON.stringify(coverage)} -> ${found.length}: ${found.map((p) => p.code).join(',')}`,
+        );
         if (!found.length) {
           return JSON.stringify({
             found: 0,
@@ -559,4 +564,30 @@ export async function executeTool(
     console.error(`[tool ${name}] ошибка:`, (e as Error).message);
     return JSON.stringify({ error: `Инструмент ${name} дал сбой: ${(e as Error).message}` });
   }
+}
+
+/**
+ * Диагностика фото-поиска (команда «!diag <модель>» от владельца в Директе).
+ * Показывает, какие товары реально попадают в кандидаты по строгому поиску,
+ * есть ли товар в наличии и грузится ли его фото. Только публичные данные.
+ */
+export async function runDiagnostic(rawQuery: string): Promise<string> {
+  const q = rawQuery.trim();
+  if (!q) return 'Формат: !diag <бренд модель>, напр. «!diag Nike Mercurial Vapor»';
+  const stripped = stripColorWords(q);
+  const matches = (await searchProducts(stripped, 25)).filter(() => true);
+  if (!matches.length) {
+    return `🔎 Запит: "${q}"\nСтрогий пошук по: "${stripped}"\nНічого не знайдено. Схоже, у каталозі немає товару з такими словами в назві.`;
+  }
+  const rows = await Promise.all(
+    matches.map(async (p) => {
+      const url = productImage(p);
+      const img = url ? await catalogImageBlock(url) : null;
+      const stock = p.anyInStock ? '✅' : '⛔';
+      const photo = img ? '📷' : url ? '⚠️' : '—';
+      return `${stock}${photo} ${p.code || '—'} · ${p.name}`;
+    }),
+  );
+  const head = `🔎 "${q}" → строгий пошук: "${stripped}"\nЗнайдено: ${matches.length} (✅в наявності ⛔нема · 📷фото ок ⚠️фото не грузиться)\n\n`;
+  return (head + rows.join('\n')).slice(0, 950);
 }
