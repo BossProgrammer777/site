@@ -4,6 +4,7 @@
 // уведомление в группу) выполняются здесь, а модель лишь решает, когда их звать.
 
 import type Anthropic from '@anthropic-ai/sdk';
+import sharp from 'sharp';
 import {
   searchProducts,
   getProductBySlug,
@@ -129,24 +130,42 @@ export interface ToolContext {
 
 const uah = (n: number) => `${Math.round(n).toLocaleString('uk-UA')} грн`;
 
-const ALLOWED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
-type MediaType = (typeof ALLOWED_MEDIA)[number];
-
-/** Скачивает картинку товара и возвращает image-блок (base64) для модели. */
+/**
+ * Скачивает картинку товара, УМЕНЬШАЕТ её (≤768px, JPEG) и возвращает image-блок
+ * для модели. Уменьшение обязательно: при показе многих фото сразу API требует
+ * каждую ≤2000px, а большие картинки переполняют запрос (413) и память (OOM).
+ * Для сравнения расцветок 768px более чем достаточно.
+ */
 async function catalogImageBlock(url: string): Promise<Anthropic.ImageBlockParam | null> {
   try {
     const res = await fetch(url, { redirect: 'follow' });
     if (!res.ok) return null;
-    const raw = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
-    const media: MediaType = (ALLOWED_MEDIA as readonly string[]).includes(raw)
-      ? (raw as MediaType)
-      : 'image/jpeg';
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.byteLength < 100 || buf.byteLength > 4_500_000) return null;
-    return { type: 'image', source: { type: 'base64', media_type: media, data: buf.toString('base64') } };
+    const input = Buffer.from(await res.arrayBuffer());
+    if (input.byteLength < 100) return null;
+    const out = await sharp(input)
+      .rotate()
+      .resize({ width: 768, height: 768, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 72 })
+      .toBuffer();
+    return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: out.toString('base64') } };
   } catch {
     return null;
   }
+}
+
+/** Выполняет асинхронную функцию над списком с ограничением параллелизма
+ *  (чтобы не держать в памяти десятки больших картинок одновременно). */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let idx = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 function productBrief(p: Product) {
@@ -330,9 +349,9 @@ export async function executeTool(
         // возвращаем обе линейки, а точную пару модель выберет глазами по фото.
         const query = stripSublineWords(stripColorWords(String(input.query || '')));
         const coverage = String(input.coverage || '');
-        // Показываем ВСЕ расцветки семейства нужного типа — иначе нужная (напр.
-        // одна из 24 расцветок Vapor XVI) выдавливается за лимит. Тип уже отсечён.
-        const MAX_CANDIDATES = 45;
+        // Показываем расцветки семейства нужного типа. Картинки уменьшаем (768px),
+        // так что 30 штук безопасно влезают в запрос и память.
+        const MAX_CANDIDATES = 30;
         let pool = (await searchProducts(query, 200)).filter((p) => p.anyInStock);
         // Режем по типу покрытия (бутси/сороконіжки/футзалки), если модель его
         // определила по фото — тогда покажем ВСЕ расцветки именно нужного типа.
@@ -367,13 +386,12 @@ export async function executeTool(
               'покажи 2–3 самые близкие по цвету карточками и предложи их, а не просто отказывай.',
           },
         ];
-        // Картинки качаем параллельно — иначе 30 последовательных запросов долго.
-        const imgs = await Promise.all(
-          found.map((p) => {
-            const url = productImage(p);
-            return url ? catalogImageBlock(url) : Promise.resolve(null);
-          }),
-        );
+        // Качаем и уменьшаем картинки с ограничением параллелизма (по 4 за раз),
+        // чтобы не держать десятки больших изображений в памяти одновременно.
+        const imgs = await mapLimit(found, 4, (p) => {
+          const url = productImage(p);
+          return url ? catalogImageBlock(url) : Promise.resolve(null);
+        });
         found.forEach((p, i) => {
           blocks.push({
             type: 'text',

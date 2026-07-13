@@ -4,6 +4,7 @@
 // сообщениями клиента и корректно сохраняем блоки размышлений при tool use.
 
 import Anthropic from '@anthropic-ai/sdk';
+import sharp from 'sharp';
 import { config } from './config.js';
 import { TOOLS, executeTool, type ToolContext } from './tools.js';
 import type { Session } from './sessions.js';
@@ -88,21 +89,21 @@ const MAX_ITERATIONS = 8;
  * отправки в Директ (побочные эффекты — карточки, заказ, вызов менеджера —
  * выполняются внутри инструментов). Историю пишем прямо в session.messages.
  */
-const ALLOWED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
-type MediaType = (typeof ALLOWED_MEDIA)[number];
-
-/** Скачивает картинку клиента и превращает в image-блок для модели (base64). */
+/** Скачивает фото клиента, уменьшает (≤1536px, JPEG) и даёт image-блок модели.
+ *  Уменьшение нужно, чтобы фото клиента не нарушало лимит 2000px в запросах, где
+ *  мы одновременно показываем много фото-кандидатов из каталога. */
 async function fetchImageBlock(url: string): Promise<Anthropic.ImageBlockParam | null> {
   try {
     const res = await fetch(url, { redirect: 'follow' });
     if (!res.ok) return null;
-    const raw = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
-    const media: MediaType = (ALLOWED_MEDIA as readonly string[]).includes(raw)
-      ? (raw as MediaType)
-      : 'image/jpeg';
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.byteLength < 100 || buf.byteLength > 4_500_000) return null;
-    return { type: 'image', source: { type: 'base64', media_type: media, data: buf.toString('base64') } };
+    const input = Buffer.from(await res.arrayBuffer());
+    if (input.byteLength < 100) return null;
+    const out = await sharp(input)
+      .rotate()
+      .resize({ width: 1536, height: 1536, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: out.toString('base64') } };
   } catch {
     return null;
   }
