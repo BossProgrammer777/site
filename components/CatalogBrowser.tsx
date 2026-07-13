@@ -160,6 +160,20 @@ const sizeSort = (a: string, b: string) => {
   return a.localeCompare(b, 'uk');
 };
 
+// Сортировка «За популярністю»: товары от этой цены (грн) идут наверх.
+const POPULAR_FROM = 2300;
+
+// Детерминированный псевдослучайный ключ [0..1) из строки (FNV-1a). Даёт
+// стабильное «перемешивание» — порядок не по цене, но не прыгает между рендерами.
+const hashUnit = (seed: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 4294967296;
+};
+
 interface Item {
   product: Section['products'][number];
   catKey: string;
@@ -263,7 +277,7 @@ export function CatalogBrowser({
   }, [sel, priceBounds.min, priceBounds.max]);
   const [visible, setVisible] = useState(PAGE);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name'>('default');
+  const [sortBy, setSortBy] = useState<'default' | 'popular' | 'price-asc' | 'price-desc' | 'name'>('default');
 
   const passes = (it: Item, exclude: Dim | null): boolean => {
     if (exclude !== 'category' && sel.categories.size && !sel.categories.has(it.catKey)) return false;
@@ -288,6 +302,16 @@ export function CatalogBrowser({
     else if (sortBy === 'price-desc') base.sort((a, b) => b.product.finalPrice - a.product.finalPrice);
     else if (sortBy === 'name')
       base.sort((a, b) => a.product.name.localeCompare(b.product.name, 'uk'));
+    else if (sortBy === 'popular')
+      // «Популярні»: дорогі позиції (від POPULAR_FROM) — вгору, всередині блоку
+      // перемішані детерміновано (по хешу id), щоб порядок не був за ціною й не
+      // стрибав при кожній зміні фільтра. Решта — нижче, теж перемішані.
+      base.sort((a, b) => {
+        const ap = a.product.finalPrice >= POPULAR_FROM ? 0 : 1;
+        const bp = b.product.finalPrice >= POPULAR_FROM ? 0 : 1;
+        if (ap !== bp) return ap - bp;
+        return hashUnit(a.product.id) - hashUnit(b.product.id);
+      });
     return base;
   }, [items, sel, sortBy]);
 
@@ -471,6 +495,7 @@ export function CatalogBrowser({
             aria-label={t.filters.sort}
           >
             <option value="default">{t.filters.sortDefault}</option>
+            <option value="popular">{t.filters.sortPopular}</option>
             <option value="price-asc">{t.filters.sortPriceAsc}</option>
             <option value="price-desc">{t.filters.sortPriceDesc}</option>
             <option value="name">{t.filters.sortName}</option>

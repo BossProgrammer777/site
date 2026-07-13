@@ -36,7 +36,7 @@ export interface Dict {
   filters: {
     panel: string; reset: string; found: string; showMore: string;
     viewType: string; brand: string; model: string; size: string; country: string;
-    searchPlaceholder: string; sort: string; sortDefault: string; sortPriceAsc: string;
+    searchPlaceholder: string; sort: string; sortDefault: string; sortPopular: string; sortPriceAsc: string;
     sortPriceDesc: string; sortName: string; price: string; priceFrom: string; priceTo: string;
     priceMin: string; priceMax: string; other: string; noBrand: string; empty: string;
   };
@@ -90,6 +90,7 @@ const uk: Dict = {
     panel: 'Фільтри', reset: 'Скинути', found: 'Знайдено товарів', showMore: 'Показати ще',
     viewType: 'Вид товару', brand: 'Бренд', model: 'Модель', size: 'Розмір', country: 'Країна',
     searchPlaceholder: 'Пошук за назвою або кодом…', sort: 'Сортування', sortDefault: 'За замовчуванням',
+    sortPopular: 'За популярністю',
     sortPriceAsc: 'Спочатку дешевші', sortPriceDesc: 'Спочатку дорожчі', sortName: 'За назвою (А–Я)',
     price: 'Ціна, грн', priceFrom: 'Ціна від', priceTo: 'Ціна до', priceMin: 'Мінімальна ціна',
     priceMax: 'Максимальна ціна', other: 'Інше', noBrand: 'Без бренду', empty: 'За обраними фільтрами нічого не знайдено.',
@@ -144,6 +145,7 @@ const ru: Dict = {
     panel: 'Фильтры', reset: 'Сбросить', found: 'Найдено товаров', showMore: 'Показать ещё',
     viewType: 'Вид товара', brand: 'Бренд', model: 'Модель', size: 'Размер', country: 'Страна',
     searchPlaceholder: 'Поиск по названию или коду…', sort: 'Сортировка', sortDefault: 'По умолчанию',
+    sortPopular: 'По популярности',
     sortPriceAsc: 'Сначала дешевле', sortPriceDesc: 'Сначала дороже', sortName: 'По названию (А–Я)',
     price: 'Цена, грн', priceFrom: 'Цена от', priceTo: 'Цена до', priceMin: 'Минимальная цена',
     priceMax: 'Максимальная цена', other: 'Другое', noBrand: 'Без бренда', empty: 'По выбранным фильтрам ничего не найдено.',
