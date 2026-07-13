@@ -6,6 +6,9 @@ import express, { type Request, type Response } from 'express';
 import { config, instagramConfigured } from './config.js';
 import {
   parseIncoming,
+  parseAccountEchoes,
+  isBotMid,
+  isRecentBotText,
   verifySignature,
   sendText,
   markSeen,
@@ -131,6 +134,22 @@ app.post('/webhook', (req: Request, res: Response) => {
 
   // Meta ждёт быстрый 200 — обрабатываем сообщения асинхронно.
   res.sendStatus(200);
+
+  // «Эхо» — сообщения, отправленные самим аккаунтом. Если это НЕ бот (значит
+  // менеджер ответил вручную) — ставим бота на паузу в этом диалоге. Команда
+  // «!бот» / «!bot» от менеджера возвращает бота обратно.
+  for (const e of parseAccountEchoes(req.body)) {
+    if (isBotMid(e.mid) || isRecentBotText(e.text)) continue; // это отправил сам бот — не трогаем
+    const session = getSession(e.partnerId);
+    const cmd = e.text.toLowerCase();
+    if (cmd === '!бот' || cmd === '!bot' || cmd === '/бот' || cmd === '/bot') {
+      session.paused = false;
+      console.error(`[handoff] менеджер вернул бота для ${e.partnerId}`);
+    } else {
+      session.paused = true; // менеджер вмешался — бот молчит
+      console.error(`[handoff] менеджер ответил вручную — бот на паузе для ${e.partnerId}`);
+    }
+  }
 
   const incoming = parseIncoming(req.body);
   for (const { senderId, text, imageUrls } of incoming) {

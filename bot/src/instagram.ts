@@ -28,6 +28,37 @@ export async function subscribeToMessages(): Promise<{ ok: boolean; status: numb
   }
 }
 
+// ID сообщений, которые отправил САМ бот. Нужно, чтобы отличить «эхо» бота от
+// ручного ответа менеджера (тогда бот замолкает в этом диалоге).
+const botSentMids = new Set<string>();
+const BOT_MIDS_CAP = 1000;
+function rememberBotMid(mid: string): void {
+  botSentMids.add(mid);
+  if (botSentMids.size > BOT_MIDS_CAP) {
+    const arr = [...botSentMids];
+    for (const m of arr.slice(0, arr.length - BOT_MIDS_CAP / 2)) botSentMids.delete(m);
+  }
+}
+export function isBotMid(mid: string): boolean {
+  return botSentMids.has(mid);
+}
+
+// Подстраховка: помимо ID, помним ТЕКСТ последних сообщений бота. Если Send API
+// вдруг не вернёт message_id, эхо бота всё равно опознаем по тексту — иначе бот
+// принял бы своё сообщение за ручной ответ менеджера и замолчал бы сам.
+const botSentTexts: string[] = [];
+const BOT_TEXTS_CAP = 60;
+function rememberBotText(text: string): void {
+  const t = text.trim();
+  if (!t) return;
+  botSentTexts.push(t);
+  if (botSentTexts.length > BOT_TEXTS_CAP) botSentTexts.shift();
+}
+export function isRecentBotText(text: string): boolean {
+  const t = text.trim();
+  return t.length > 0 && botSentTexts.includes(t);
+}
+
 async function send(body: unknown): Promise<void> {
   try {
     const res = await fetch(sendUrl(), {
@@ -37,6 +68,15 @@ async function send(body: unknown): Promise<void> {
     });
     if (!res.ok) {
       console.error('[instagram] send error:', res.status, (await res.text()).slice(0, 300));
+      return;
+    }
+    // Запоминаем ID отправленного ботом сообщения (чтобы не спутать его эхо
+    // с ручным ответом менеджера).
+    try {
+      const data = (await res.json()) as { message_id?: string };
+      if (data?.message_id) rememberBotMid(data.message_id);
+    } catch {
+      /* тело без message_id (напр. sender_action) — игнорируем */
     }
   } catch (e) {
     console.error('[instagram] send failed:', (e as Error).message);
@@ -61,6 +101,7 @@ function chunk(text: string, size = 950): string[] {
 
 export async function sendText(recipientId: string, text: string): Promise<void> {
   for (const part of chunk(text)) {
+    rememberBotText(part);
     await send({ recipient: { id: recipientId }, message: { text: part } });
   }
 }
@@ -107,7 +148,7 @@ interface Attachment {
 interface WebhookMessaging {
   sender?: { id?: string };
   recipient?: { id?: string };
-  message?: { text?: string; is_echo?: boolean; is_deleted?: boolean; attachments?: Attachment[] };
+  message?: { mid?: string; text?: string; is_echo?: boolean; is_deleted?: boolean; attachments?: Attachment[] };
 }
 
 /**
@@ -131,6 +172,35 @@ export function parseIncoming(body: unknown): IncomingMessage[] {
         .slice(0, 3);
       if (!text && !imageUrls.length) continue; // ни текста, ни фото — пропускаем
       out.push({ senderId, text, imageUrls });
+    }
+  }
+  return out;
+}
+
+export interface EchoEvent {
+  /** Собеседник (клиент), которому ушло сообщение от аккаунта. */
+  partnerId: string;
+  /** ID эхо-сообщения. */
+  mid: string;
+  /** Текст (может быть пустым — напр. отправили фото). */
+  text: string;
+}
+
+/**
+ * Достаёт «эхо» — сообщения, отправленные САМИМ аккаунтом (ботом или менеджером
+ * вручную из Instagram). По ним ловим момент, когда менеджер вмешался в диалог.
+ */
+export function parseAccountEchoes(body: unknown): EchoEvent[] {
+  const out: EchoEvent[] = [];
+  const b = body as { entry?: { messaging?: WebhookMessaging[] }[] };
+  for (const entry of b.entry || []) {
+    for (const m of entry.messaging || []) {
+      const msg = m.message;
+      if (!msg || !msg.is_echo || msg.is_deleted) continue;
+      const partnerId = m.recipient?.id;
+      const mid = msg.mid;
+      if (!partnerId || !mid) continue;
+      out.push({ partnerId, mid, text: (msg.text || '').trim() });
     }
   }
   return out;
