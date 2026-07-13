@@ -150,7 +150,18 @@ export function ProductDetail({ product }: { product: Product }) {
     <div className="grid gap-8 lg:grid-cols-2">
       {/* Галерея */}
       <div>
-        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-ink-800 bg-white/95 p-3">
+        <div
+          onClick={() => {
+            if (images.length < 2) return;
+            setMainIdx((i) => (i + 1) % images.length);
+            setMainBroken(false);
+          }}
+          className={
+            'flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-ink-800 bg-white/95 p-3 ' +
+            (images.length > 1 ? 'cursor-pointer' : '')
+          }
+          title={images.length > 1 ? 'Наступне фото' : undefined}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={mainBroken ? PLACEHOLDER : images[mainIdx] || PLACEHOLDER}
