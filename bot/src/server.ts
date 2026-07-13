@@ -15,7 +15,7 @@ import {
   typingOn,
   subscribeToMessages,
 } from './instagram.js';
-import { getSession, runExclusive, logHandoff } from './sessions.js';
+import { getSession, runExclusive, logHandoff, type Session } from './sessions.js';
 import { hasBuyingSignal, isClearJunk } from './intent.js';
 import { runAgent } from './agent.js';
 import { runDiagnostic } from './tools.js';
@@ -119,6 +119,59 @@ app.get('/webhook', (req: Request, res: Response) => {
 
 // Пауза для склейки сообщений, пришедших подряд (фото + подпись), в один ответ.
 const MESSAGE_DEBOUNCE_MS = 2500;
+// Сколько ждать ответа менеджера после сообщения клиента, прежде чем бот
+// сам продолжит диалог (авто-возврат из ручного режима).
+const HANDOFF_IDLE_MS = 3 * 60 * 1000;
+
+/** Прогоняет ответ бота: проверяет паузу до и после раздумий, отправляет реплику. */
+async function botRespond(
+  senderId: string,
+  session: Session,
+  contextText: string,
+  images: string[],
+): Promise<void> {
+  try {
+    if (session.paused) return; // менеджер ведёт диалог
+    await typingOn(senderId);
+    const reply = await runAgent(
+      session,
+      contextText,
+      { recipientId: senderId, session, channel: instagramChannel },
+      images,
+    );
+    if (session.paused) return; // менеджер вмешался, пока бот думал
+    if (reply) {
+      await sendText(senderId, reply);
+    } else if (!session.paused) {
+      await sendText(
+        senderId,
+        'Дякую за повідомлення! Уточніть, будь ласка, що саме шукаєте (модель, розмір), і я підберу варіанти 🙌',
+      );
+    }
+  } catch (e) {
+    console.error('[agent] ошибка обработки сообщения:', (e as Error).message);
+    await sendText(
+      senderId,
+      'Вибачте, стався технічний збій. Спробуйте, будь ласка, ще раз — або напишіть «менеджер», і з вами зв’яжеться людина.',
+    ).catch(() => undefined);
+  }
+}
+
+/** Добавляет к тексту накопленный лог передачи менеджеру (если был), очищая его. */
+function withHandoffContext(session: Session, userText: string, bySilence: boolean): string {
+  if (!session.handoffLog.length) return userText;
+  const log = session.handoffLog.join('\n');
+  session.handoffLog = [];
+  const head = bySilence
+    ? 'Менеджер підключався до діалогу, але вже кілька хвилин не відповідає.'
+    : 'Поки тебе не було, з клієнтом спілкувався живий менеджер.';
+  return (
+    `[${head} Ось ця частина розмови:\n${log}\n` +
+    `Продовж діалог сам: дай відповідь по суті останнього повідомлення клієнта, ` +
+    `не вітайся заново і не повторюй те, що вже сказав менеджер.]` +
+    (userText ? `\n\n${userText}` : '')
+  );
+}
 
 // --- Входящие сообщения -------------------------------------------------------
 app.post('/webhook', (req: Request, res: Response) => {
@@ -148,6 +201,12 @@ app.post('/webhook', (req: Request, res: Response) => {
     } else {
       session.paused = true; // менеджер вмешался — бот молчит
       logHandoff(session, `Менеджер: ${e.text || '[вкладення]'}`);
+      // Менеджер активен — сбрасываем таймер авто-возврата (отсчёт пойдёт заново
+      // от следующего сообщения клиента).
+      if (session.handoffTimer) {
+        clearTimeout(session.handoffTimer);
+        session.handoffTimer = null;
+      }
       console.error(`[handoff] менеджер ответил вручную — бот на паузе для ${e.partnerId}`);
     }
   }
@@ -166,10 +225,20 @@ app.post('/webhook', (req: Request, res: Response) => {
       continue;
     }
 
-    // Диалог переведён на живого менеджера — бот молчит, НО запоминает реплики
-    // клиента, чтобы после возврата (`!бот`) продолжить с полным контекстом.
+    // Диалог ведёт живой менеджер — бот молчит, НО запоминает реплики клиента.
+    // Если менеджер не ответит в течение HANDOFF_IDLE_MS после этого сообщения —
+    // бот сам продолжит диалог (с сохранённым контекстом). Писать команды не надо.
     if (session.paused) {
       logHandoff(session, `Клієнт: ${text || '[фото]'}`);
+      markSeen(senderId).catch(() => undefined);
+      if (session.handoffTimer) clearTimeout(session.handoffTimer);
+      session.handoffTimer = setTimeout(() => {
+        session.handoffTimer = null;
+        if (!session.paused) return;
+        session.paused = false;
+        console.error(`[handoff] менеджер мовчить ${HANDOFF_IDLE_MS / 1000}с — бот продовжує сам для ${senderId}`);
+        runExclusive(session, () => botRespond(senderId, session, withHandoffContext(session, '', true), []));
+      }, HANDOFF_IDLE_MS);
       continue;
     }
 
@@ -198,46 +267,9 @@ app.post('/webhook', (req: Request, res: Response) => {
       const combinedImages = session.pendingImages.slice();
       session.pendingTexts = [];
       session.pendingImages = [];
-      runExclusive(session, async () => {
-        try {
-          // Менеджер мог вмешаться, пока копилось сообщение — тогда молчим.
-          if (session.paused) return;
-          // Если пока бот молчал, с клиентом общался менеджер — добавляем эту
-          // часть переписки в контекст, чтобы бот продолжил осознанно.
-          let contextText = combinedText;
-          if (session.handoffLog.length) {
-            const log = session.handoffLog.join('\n');
-            session.handoffLog = [];
-            contextText =
-              `[Поки тебе не було, з клієнтом спілкувався живий менеджер. Ось ця частина розмови:\n${log}\n` +
-              `Продовж діалог з урахуванням цього, не повторюй те, що вже сказав менеджер, і не вітайся заново.]` +
-              (combinedText ? `\n\n${combinedText}` : '');
-          }
-          await typingOn(senderId);
-          const reply = await runAgent(
-            session,
-            contextText,
-            { recipientId: senderId, session, channel: instagramChannel },
-            combinedImages,
-          );
-          // Перепроверяем: менеджер мог ответить вручную, пока бот думал.
-          if (session.paused) return;
-        if (reply) {
-          await sendText(senderId, reply);
-        } else if (!session.paused) {
-          await sendText(
-            senderId,
-            'Дякую за повідомлення! Уточніть, будь ласка, що саме шукаєте (модель, розмір), і я підберу варіанти 🙌',
-          );
-        }
-      } catch (e) {
-        console.error('[agent] ошибка обработки сообщения:', (e as Error).message);
-        await sendText(
-          senderId,
-          'Вибачте, стався технічний збій. Спробуйте, будь ласка, ще раз — або напишіть «менеджер», і з вами зв’яжеться людина.',
-        ).catch(() => undefined);
-      }
-      });
+      runExclusive(session, () =>
+        botRespond(senderId, session, withHandoffContext(session, combinedText, false), combinedImages),
+      );
     }, MESSAGE_DEBOUNCE_MS);
   }
 });

@@ -25,6 +25,9 @@ export interface Session {
   // Пока бот на паузе (менеджер ведёт диалог) — сюда пишем реплики клиента и
   // менеджера, чтобы после возврата бот продолжил с полным контекстом.
   handoffLog: string[];
+  // Таймер авто-возврата: если менеджер молчит N минут после сообщения клиента,
+  // бот сам продолжает диалог.
+  handoffTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const SESSIONS = new Map<string, Session>();
@@ -52,6 +55,7 @@ export function getSession(senderId: string): Session {
       pendingImages: [],
       pendingTimer: null,
       handoffLog: [],
+      handoffTimer: null,
     };
     SESSIONS.set(senderId, s);
   }
