@@ -1,23 +1,28 @@
 import Script from 'next/script';
 
-// Подключает Google Analytics и Meta (Facebook) Pixel, если заданы их ID в env:
-//   NEXT_PUBLIC_GA_ID       — напр. G-XXXXXXX
-//   NEXT_PUBLIC_FB_PIXEL_ID — напр. 1234567890
-// Без ID ничего не рендерится.
+// Подключает Google Analytics, Google Ads и Meta (Facebook) Pixel по ID из env:
+//   NEXT_PUBLIC_GA_ID       — напр. G-XXXXXXX  (Google Analytics)
+//   NEXT_PUBLIC_GADS_ID     — напр. AW-XXXXXXX (Google Ads — для конверсий)
+//   NEXT_PUBLIC_FB_PIXEL_ID — напр. 1234567890 (Meta Pixel)
+// Без ID соответствующий тег не рендерится.
 export function Analytics() {
   const ga = process.env.NEXT_PUBLIC_GA_ID;
+  const ads = process.env.NEXT_PUBLIC_GADS_ID;
   const pixel = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+  // gtag.js достаточно подключить один раз — он обслуживает и GA, и Google Ads.
+  const gtagId = ga || ads;
 
   return (
     <>
-      {ga && (
+      {gtagId && (
         <>
-          <Script src={`https://www.googletagmanager.com/gtag/js?id=${ga}`} strategy="afterInteractive" />
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${gtagId}`} strategy="afterInteractive" />
           <Script id="ga-init" strategy="afterInteractive">
             {`window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${ga}');`}
+${ga ? `gtag('config', '${ga}');` : ''}
+${ads ? `gtag('config', '${ads}');` : ''}`}
           </Script>
         </>
       )}

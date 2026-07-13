@@ -5,6 +5,7 @@ import { useCart, formatUAH } from '../cart/CartContext';
 import { LocaleLink } from '../LocaleLink';
 import { useLocale, useT } from '../LocaleProvider';
 import { localizeProductName } from '@/lib/productL10n';
+import { trackPurchase } from '@/lib/gtag';
 
 interface City {
   ref: string;
@@ -125,6 +126,17 @@ export function CheckoutForm() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || t.checkout.sendError);
+      // Событие о покупке в аналитику/рекламу — до очистки корзины.
+      trackPurchase({
+        value: total,
+        currency: 'UAH',
+        items: items.map((i) => ({
+          id: i.code || i.productId,
+          name: i.name,
+          price: i.price,
+          quantity: i.qty,
+        })),
+      });
       clear();
       setDone(true);
     } catch (err) {
