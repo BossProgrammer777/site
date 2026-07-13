@@ -89,6 +89,17 @@ function stripColorWords(query: string): string {
   return (kept.length ? kept : tokens).join(' ');
 }
 
+// Под-линейки/уровни, которые модель путает по фото (низкий Vapor ↔ высокий
+// Superfly и т.п.). Для фото-поиска убираем их — ищем по семейству, а точную
+// пару модель выбирает глазами. Убираем только если остаётся бренд+семейство
+// (≥2 слова), чтобы не расширить поиск до «все Nike».
+const SUBLINE_WORDS = ['vapor', 'superfly', 'elite', 'academy', 'pro', 'club', 'zoom', 'air'];
+function stripSublineWords(query: string): string {
+  const tokens = (query || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const kept = tokens.filter((w) => !SUBLINE_WORDS.includes(w));
+  return kept.length >= 2 ? kept.join(' ') : query;
+}
+
 /**
  * Фильтр по типу покрытия (для фото-поиска). Названия товаров всегда начинаются
  * с типа: «Бутси…» (FG), «Сороконіжки…» (TF), «Футзалки…» (IC) — по нему и режем,
@@ -192,9 +203,9 @@ export const TOOLS: Anthropic.Tool[] = [
         query: {
           type: 'string',
           description:
-            'ТОЛЬКО бренд + ТОЧНАЯ линейка модели, как ты определил по фото (напр. «Nike Mercurial Vapor», «Nike Mercurial Superfly», «Adidas Predator»). ' +
-            'ВАЖНО не перепутать линейку: Vapor — НИЗКИЙ крой (без носка-манжеты на щиколотке); Superfly — ВЫСОКИЙ крой с носком-манжетой вверх. Это разные модели! ' +
-            'НЕ добавляй цвет/расцветку в запрос — цвета нет в названии, ты определишь его глазами по возвращённым фото.',
+            'Бренд + СЕМЕЙСТВО модели (напр. «Nike Mercurial», «Nike Phantom», «Adidas Predator», «Adidas X»). ' +
+            'НЕ указывай под-линейку/версию (Vapor, Superfly, Elite, Academy, XV/XVI) и НЕ указывай цвет — их легко перепутать по фото. ' +
+            'Инструмент вернёт ВСЕ расцветки и варианты семейства этого типа, а ты выберешь ТОЧНОЕ совпадение (крой + цвет) глазами по картинкам.',
         },
         coverage: {
           type: 'string',
@@ -314,12 +325,15 @@ export async function executeTool(
         // Поиск СТРОГИЙ (все слова модели должны совпасть): «Nike Mercurial Vapor»
         // вернёт только Vapor, а не Superfly. Из запроса убираем слова-цвета, чтобы
         // они не обнуляли строгий поиск (цвета в названиях нет — он на картинке).
-        const query = stripColorWords(String(input.query || ''));
+        // Убираем цвет И под-линейку (Vapor/Superfly/Elite…): модель часто путает
+        // низкий Vapor с высоким Superfly. Ищем по СЕМЕЙСТВУ (Nike Mercurial),
+        // возвращаем обе линейки, а точную пару модель выберет глазами по фото.
+        const query = stripSublineWords(stripColorWords(String(input.query || '')));
         const coverage = String(input.coverage || '');
-        // Фильтр по типу покрытия уже сужает набор до одного типа модели, поэтому
-        // 20 расцветок обычно покрывают всё, а расход токенов держим в узде.
-        const MAX_CANDIDATES = 20;
-        let pool = (await searchProducts(query, 120)).filter((p) => p.anyInStock);
+        // Показываем ВСЕ расцветки семейства нужного типа — иначе нужная (напр.
+        // одна из 24 расцветок Vapor XVI) выдавливается за лимит. Тип уже отсечён.
+        const MAX_CANDIDATES = 45;
+        let pool = (await searchProducts(query, 200)).filter((p) => p.anyInStock);
         // Режем по типу покрытия (бутси/сороконіжки/футзалки), если модель его
         // определила по фото — тогда покажем ВСЕ расцветки именно нужного типа.
         const typeMatcher = coverageMatcher(coverage);
