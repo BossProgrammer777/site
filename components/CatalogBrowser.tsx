@@ -277,7 +277,7 @@ export function CatalogBrowser({
   }, [sel, priceBounds.min, priceBounds.max]);
   const [visible, setVisible] = useState(PAGE);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<'default' | 'popular' | 'price-asc' | 'price-desc' | 'name'>('default');
+  const [sortBy, setSortBy] = useState<'default' | 'popular' | 'price-asc' | 'price-desc' | 'name'>('popular');
 
   const passes = (it: Item, exclude: Dim | null): boolean => {
     if (exclude !== 'category' && sel.categories.size && !sel.categories.has(it.catKey)) return false;
