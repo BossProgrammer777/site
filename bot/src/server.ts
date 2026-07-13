@@ -197,6 +197,8 @@ app.post('/webhook', (req: Request, res: Response) => {
       session.pendingImages = [];
       runExclusive(session, async () => {
         try {
+          // Менеджер мог вмешаться, пока копилось сообщение — тогда молчим.
+          if (session.paused) return;
           await typingOn(senderId);
           const reply = await runAgent(
             session,
@@ -204,6 +206,8 @@ app.post('/webhook', (req: Request, res: Response) => {
             { recipientId: senderId, session, channel: instagramChannel },
             combinedImages,
           );
+          // Перепроверяем: менеджер мог ответить вручную, пока бот думал.
+          if (session.paused) return;
         if (reply) {
           await sendText(senderId, reply);
         } else if (!session.paused) {
