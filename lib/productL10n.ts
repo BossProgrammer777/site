@@ -6,7 +6,7 @@
 
 import type { Locale } from './i18n';
 
-const normApos = (s: string) => s.replace(/[''`ʼ]/g, "'");
+const normApos = (s: string) => s.replace(/[\u2018\u2019\u02bc\u0060\u00b4]/g, "'");
 
 // UA-слово (в нижнем регистре, апострофы нормализованы) → RU (с регистром).
 const NAME_MAP: Record<string, string> = {
@@ -52,6 +52,30 @@ export function localizeProductName(name: string, locale: Locale): string {
 export function localizeCountry(country: string | null, locale: Locale): string {
   if (locale !== 'ru' || !country) return country || '';
   return COUNTRY_MAP[normApos(country).toLowerCase().trim()] ?? country;
+}
+
+// Приведение разнобойных написаний страны к единому UA-канону (щоб фільтр
+// «Країна» не двоївся: Вьетнам / Vietnam / В'єтнам → В'єтнам). Ключи — в нижнем
+// регистре, апострофы нормализованы. Идемпотентно. Неизвестные — как есть (trim).
+const COUNTRY_CANON: Record<string, string> = {
+  "вьетнам": "В'єтнам", "в'єтнам": "В'єтнам", "вєтнам": "В'єтнам", "vietnam": "В'єтнам",
+  "босния": 'Боснія', "боснія": 'Боснія', "bosnia": 'Боснія',
+  "индонезия": 'Індонезія', "індонезія": 'Індонезія', "indonesia": 'Індонезія',
+  "турция": 'Туреччина', "туреччина": 'Туреччина', "turkey": 'Туреччина',
+  "китай": 'Китай', "china": 'Китай',
+  "таиланд": 'Таїланд', "таїланд": 'Таїланд', "thailand": 'Таїланд',
+  "украина": 'Україна', "україна": 'Україна', "ukraine": 'Україна',
+  "индия": 'Індія', "індія": 'Індія', "india": 'Індія',
+  "пакистан": 'Пакистан', "pakistan": 'Пакистан',
+  "бангладеш": 'Бангладеш', "bangladesh": 'Бангладеш',
+  "камбоджа": 'Камбоджа', "cambodia": 'Камбоджа',
+};
+
+/** Единый UA-канон страны (для хранения/фильтров). Локализацию делает localizeCountry. */
+export function canonCountry(country: string): string {
+  const raw = (country || '').trim();
+  if (!raw) return '';
+  return COUNTRY_CANON[normApos(raw).toLowerCase()] ?? raw;
 }
 
 // Приведение вариативных/русских написаний группы-модели к единому UA-канону,

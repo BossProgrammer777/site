@@ -5,9 +5,18 @@ import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
-import { categoryCopy, categoryLandingSlugs, breadcrumbJsonLd, jsonLdScript } from '@/lib/seo';
+import { CategorySeoContent } from '@/components/CategorySeoContent';
+import {
+  categoryCopy,
+  categoryLandingSlugs,
+  categorySeoRich,
+  breadcrumbJsonLd,
+  faqJsonLd,
+  jsonLdScript,
+} from '@/lib/seo';
 import { siteUrl } from '@/lib/site';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { BRAND_LANDINGS, detectBrand } from '@/lib/brand';
 import { dict } from '@/lib/dictionaries';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +56,18 @@ export default async function CategoryPage({ params }: { params: { lang: Locale;
     { name: seo.h1, url: `${base}${lh(`/catalog/${seo.slug}`)}` },
   ]);
 
+  // Структурированный SEO-контент + бренды, реально присутствующие в категории
+  // (для внутренней перелинковки на непустые брендовые посадочные).
+  const rich = categorySeoRich(seo.slug, params.lang);
+  const section = catalog.sections.find((s) => s.slug === seo.slug);
+  const availBrands = section
+    ? BRAND_LANDINGS.filter((b) =>
+        section.products.some(
+          (p) => detectBrand(`${p.group || ''} ${p.name}`, seo.slug) === b.name,
+        ),
+      )
+    : [];
+
   return (
     <>
       <SiteHeader />
@@ -67,12 +88,32 @@ export default async function CategoryPage({ params }: { params: { lang: Locale;
         <p className="mb-6 max-w-3xl text-sm leading-relaxed [color:#9fb3a6]">{seo.intro}</p>
 
         <CatalogBrowser sections={catalog.sections} initialSections={[seo.slug]} />
+
+        {rich && (
+          <CategorySeoContent
+            content={rich}
+            categorySlug={seo.slug}
+            categoryH1={seo.h1}
+            brands={availBrands}
+            locale={params.lang}
+          />
+        )}
       </main>
       <SiteFooter />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(crumbs) }}
       />
+      {rich && rich.faq.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLdScript(
+              faqJsonLd(rich.faq.map((f) => ({ q: f.question, a: f.answer }))),
+            ),
+          }}
+        />
+      )}
     </>
   );
 }

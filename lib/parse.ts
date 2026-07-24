@@ -13,6 +13,7 @@
 import { COLUMN_KEYWORDS, SheetDef, computeFinalPrice } from './config';
 import { Product, SizeAvailability } from './types';
 import { productSlug } from './slug';
+import { canonCountry } from './productL10n';
 
 /** Унифицированное представление ячейки после нормализации grid data. */
 export interface Cell {
@@ -402,7 +403,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       slug: productSlug(displayName, codeCell.text || String(counter)),
       code: codeCell.text,
       name: displayName,
-      country: cellAt(row, cols.country).text,
+      country: canonCountry(cellAt(row, cols.country).text),
       finalPrice: computeFinalPrice(basePrice, sheet.kind),
       image: photoCell.imageUrl || null,
       sizes,
