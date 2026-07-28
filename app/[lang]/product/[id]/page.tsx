@@ -5,6 +5,7 @@ import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { ProductDetail } from '@/components/ProductDetail';
+import { ProductSeoContent } from '@/components/ProductSeoContent';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
 import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
@@ -110,6 +111,7 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
           </Link>
         </nav>
         <ProductDetail product={product} />
+        <ProductSeoContent product={product} sectionSlug={sectionSlug} locale={lang} />
       </main>
       <SiteFooter />
       <script
