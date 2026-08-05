@@ -69,6 +69,8 @@ export default async function HomePage({ params }: { params: { lang: Locale } })
 
   return (
     <>
+      {/* Ранняя загрузка первого баннера — это LCP-элемент на мобильном. */}
+      <link rel="preload" as="image" href="/banners/2.webp" fetchPriority="high" />
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 pb-16">
         <HomeBanner />

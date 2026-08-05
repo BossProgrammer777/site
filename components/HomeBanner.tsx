@@ -7,9 +7,9 @@ import { localeHref } from '@/lib/i18n';
 
 // Ссылки и фото слайдов (текст — из словаря, по индексу).
 const SLIDE_META = [
-  { href: '/catalog', image: '/banners/2.jpg' },
-  { href: '/catalog', image: '/banners/1.jpg' },
-  { href: '/catalog/sorokonizhky', image: '/banners/3.jpg' },
+  { href: '/catalog', image: '/banners/2.webp' },
+  { href: '/catalog', image: '/banners/1.webp' },
+  { href: '/catalog/sorokonizhky', image: '/banners/3.webp' },
 ];
 
 export function HomeBanner() {
