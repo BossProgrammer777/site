@@ -4,6 +4,7 @@ import { getCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { HomeBanner } from '@/components/HomeBanner';
+import { ProductCard } from '@/components/ProductCard';
 import { getCategorySeo } from '@/lib/seo';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { dict, sectionLabel } from '@/lib/dictionaries';
@@ -41,11 +42,59 @@ export default async function HomePage({ params }: { params: { lang: Locale } })
       image: tileImage(s.products.find((p) => p.image)?.image ?? null),
     }));
 
+  // Популярное: товары в наличии, дороже — выше (премиальные модели вперёд).
+  // Показываем сразу на главной, чтобы посетитель видел товар и цену за секунды.
+  const popular = catalog.sections
+    .flatMap((s) => s.products)
+    .filter((p) => p.anyInStock)
+    .sort((a, b) => b.finalPrice - a.finalPrice)
+    .slice(0, 8);
+
+  const trust = [
+    {
+      label: tr.trustDelivery,
+      icon: (
+        <path d="M1 6h13v10H1zM14 9h4l3 3v4h-7zM6 18a1.6 1.6 0 100-3.2A1.6 1.6 0 006 18zm12 0a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z" />
+      ),
+    },
+    {
+      label: tr.trustPayment,
+      icon: <path d="M2 5h20v14H2zM2 9h20M6 15h4" />,
+    },
+    {
+      label: tr.trustReturn,
+      icon: <path d="M3 8a9 9 0 0114-2m1 2V4m0 4h-4M21 16a9 9 0 01-14 2m-1-2v4m0-4h4" />,
+    },
+  ];
+
   return (
     <>
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 pb-16">
         <HomeBanner />
+
+        {/* Строка доверия: доставка / оплата при отриманні / обмін.
+            Сразу под баннером — важно для соцтрафика (реплики требуют доверия). */}
+        <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-ink-800 bg-ink-900/60 p-2.5 sm:gap-4 sm:p-3">
+          {trust.map((t) => (
+            <div key={t.label} className="flex flex-col items-center gap-1.5 text-center sm:flex-row sm:justify-center sm:gap-2">
+              <svg
+                className="h-5 w-5 shrink-0 text-brand"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {t.icon}
+              </svg>
+              <span className="text-[11px] font-semibold leading-tight [color:#c3d3c8] sm:text-sm">
+                {t.label}
+              </span>
+            </div>
+          ))}
+        </div>
 
         {/* Герой */}
         <section className="py-8 sm:py-12">
@@ -71,11 +120,24 @@ export default async function HomePage({ params }: { params: { lang: Locale } })
           </div>
         </section>
 
+        {/* Популярные товары: сразу видны товар + цена + «в наявності».
+            grid-cols-2 на мобильном — витрина открывается без клика в каталог. */}
+        {popular.length > 0 && (
+          <section className="pb-2">
+            <h2 className="mb-4 text-xl font-bold sm:text-2xl">{tr.popular}</h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+              {popular.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Плитки-разделы */}
         <section>
           <h2 className="mb-5 text-xl font-bold sm:text-2xl">{tr.categories}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {tiles.map((t) => (
+            {tiles.map((t, ti) => (
               <Link
                 key={t.slug}
                 href={href(sectionHref(t.slug))}
@@ -85,7 +147,8 @@ export default async function HomePage({ params }: { params: { lang: Locale } })
                 <img
                   src={t.image}
                   alt={t.label}
-                  loading="lazy"
+                  // Первый ряд плиток виден на первом экране — грузим не лениво.
+                  loading={ti < 2 ? 'eager' : 'lazy'}
                   className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-500 group-hover:scale-105 group-hover:opacity-90"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/50 to-transparent" />

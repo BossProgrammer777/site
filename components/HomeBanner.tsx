@@ -44,6 +44,9 @@ export function HomeBanner() {
               <img
                 src={s.image}
                 alt=""
+                // Первый слайд — LCP-элемент: грузим сразу и с высоким приоритетом.
+                loading={idx === 0 ? 'eager' : 'lazy'}
+                fetchPriority={idx === 0 ? 'high' : 'auto'}
                 onError={() => setBroken((b) => ({ ...b, [idx]: true }))}
                 className="absolute inset-0 h-full w-full object-cover"
               />

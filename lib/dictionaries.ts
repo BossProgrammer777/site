@@ -18,6 +18,10 @@ export interface Dict {
     inStockCount: string; // «{n} товарів у наявності»
     categories: string;
     itemsShort: string; // «товарів»
+    popular: string; // заголовок блока популярных товаров
+    trustDelivery: string;
+    trustPayment: string;
+    trustReturn: string;
   };
   product: {
     code: string; country: string; size: string; chosen: string;
@@ -58,6 +62,10 @@ const uk: Dict = {
     inStockCount: 'товарів у наявності',
     categories: 'Категорії',
     itemsShort: 'товарів',
+    popular: 'Популярне',
+    trustDelivery: 'Доставка Новою Поштою',
+    trustPayment: 'Оплата при отриманні',
+    trustReturn: 'Обмін і повернення',
   },
   product: {
     code: 'Код', country: 'Країна', size: 'Розмір', chosen: 'обрано',
@@ -113,6 +121,10 @@ const ru: Dict = {
     inStockCount: 'товаров в наличии',
     categories: 'Категории',
     itemsShort: 'товаров',
+    popular: 'Популярное',
+    trustDelivery: 'Доставка Новой Почтой',
+    trustPayment: 'Оплата при получении',
+    trustReturn: 'Обмен и возврат',
   },
   product: {
     code: 'Код', country: 'Страна', size: 'Размер', chosen: 'выбрано',
