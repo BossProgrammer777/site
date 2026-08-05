@@ -43,6 +43,9 @@ export function HomeBanner() {
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={s.image}
+                // Адаптивно: мобилке — лёгкая версия 800px, десктопу — 1200px.
+                srcSet={`${s.image.replace('.webp', '-800.webp')} 800w, ${s.image} 1200w`}
+                sizes="(max-width: 640px) 100vw, 1152px"
                 alt=""
                 // Первый слайд — LCP-элемент: грузим сразу и с высоким приоритетом.
                 loading={idx === 0 ? 'eager' : 'lazy'}
