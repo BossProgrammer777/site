@@ -12,7 +12,7 @@ export type SocialId = 'instagram' | 'tiktok' | 'youtube' | 'telegram';
 export const SOCIALS: { id: SocialId; name: string; handle: string; href: string }[] = [
   { id: 'instagram', name: 'Instagram', handle: '@bootsbaza', href: INSTAGRAM },
   { id: 'tiktok', name: 'TikTok', handle: '@bootsbaza', href: 'https://www.tiktok.com/@bootsbaza' },
-  { id: 'youtube', name: 'YouTube', handle: '@bootsbaza', href: 'https://youtube.com/@bootsbaza9099' },
+  { id: 'youtube', name: 'YouTube', handle: '@bootsbaza', href: 'https://youtube.com/@bootsbaza' },
   { id: 'telegram', name: 'Telegram', handle: '@your_seller_ua', href: 'https://t.me/your_seller_ua' },
 ];
 
