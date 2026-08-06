@@ -487,25 +487,27 @@ export function ProductDetail({ product }: { product: Product }) {
         role="dialog"
         aria-modal="true"
       >
-        <div className="relative w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => setVideoOpen(false)}
-            aria-label="Закрити"
-            className="absolute -top-11 right-0 flex h-9 w-9 items-center justify-center rounded-full bg-ink-800 text-white ring-1 ring-white/10 hover:bg-ink-700"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-          <div className="overflow-hidden rounded-2xl border border-ink-700 bg-black">
-            <iframe
-              src={videoUrl}
-              title="Відео товару"
-              allow="autoplay; fullscreen"
-              allowFullScreen
-              className="aspect-video w-full"
-            />
-          </div>
+        <button
+          onClick={() => setVideoOpen(false)}
+          aria-label="Закрити"
+          className="fixed right-4 top-4 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-ink-800/90 text-white ring-1 ring-white/10 hover:bg-ink-700"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+        {/* Портретное окно под вертикальные ролики (Reels 9:16). */}
+        <div
+          className="relative h-[86vh] w-[94vw] max-w-[460px] overflow-hidden rounded-2xl border border-ink-700 bg-black"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <iframe
+            src={videoUrl}
+            title="Відео товару"
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            className="h-full w-full"
+          />
         </div>
       </div>
     )}
