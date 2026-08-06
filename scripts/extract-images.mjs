@@ -13,19 +13,6 @@ import { unzipSync } from 'fflate';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import sharp from 'sharp';
-
-// Сжатие карточного фото: ресайз под витрину + WebP. Тяжёлые студийные PNG
-// (по 700+ КБ, 800×600) превращаются в ~50–80 КБ WebP — это резко ускоряет
-// мобильную загрузку (LCP). При любой ошибке возвращаем оригинал, чтобы сборка
-// не падала.
-async function toWebp(input) {
-  return sharp(input, { failOn: 'none' })
-    .rotate()
-    .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: 80 })
-    .toBuffer();
-}
 
 const SPREADSHEET_ID =
   process.env.SPREADSHEET_ID || '1JRAYTZNtYiNgJE6lT1DPpG9eeXP2PUxQcqG-0Hyg0JE';
@@ -268,19 +255,9 @@ async function main() {
       const dir = path.join(OUT_DIR, slug);
       if (anchors.length) fs.mkdirSync(dir, { recursive: true });
       for (const { row, mediaPath } of anchors) {
-        const input = Buffer.from(files[mediaPath]);
-        let outName;
-        let outBuf;
-        try {
-          outBuf = await toWebp(input);
-          outName = `${row}.webp`;
-        } catch (e) {
-          // Не удалось сжать — кладём оригинал, чтобы фото не пропало.
-          outBuf = input;
-          outName = `${row}.${extInfo(mediaPath)}`;
-        }
-        fs.writeFileSync(path.join(dir, outName), outBuf);
-        (manifest[slug] ||= {})[row] = `/photos/${slug}/${outName}`;
+        const ext = extInfo(mediaPath);
+        fs.writeFileSync(path.join(dir, `${row}.${ext}`), Buffer.from(files[mediaPath]));
+        (manifest[slug] ||= {})[row] = `/photos/${slug}/${row}.${ext}`;
         embedded += 1;
       }
     }
