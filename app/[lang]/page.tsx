@@ -42,13 +42,21 @@ export default async function HomePage({ params }: { params: { lang: Locale } })
       image: tileImage(s.products.find((p) => p.image)?.image ?? null),
     }));
 
-  // Популярное: товары в наличии, дороже — выше (премиальные модели вперёд).
-  // Показываем сразу на главной, чтобы посетитель видел товар и цену за секунды.
-  const popular = catalog.sections
+  // Популярное: премиальные модели вперёд, но БЕЗ повторов одной модели —
+  // берём по одному товару на модель (group/название), чтобы витрина была
+  // разнообразной, а не «4 однакові Phantom GX підряд».
+  const popular: typeof catalog.sections[number]['products'] = [];
+  const seenModels = new Set<string>();
+  for (const p of catalog.sections
     .flatMap((s) => s.products)
     .filter((p) => p.anyInStock)
-    .sort((a, b) => b.finalPrice - a.finalPrice)
-    .slice(0, 8);
+    .sort((a, b) => b.finalPrice - a.finalPrice)) {
+    const key = (p.group || p.name || '').trim().toLowerCase();
+    if (seenModels.has(key)) continue;
+    seenModels.add(key);
+    popular.push(p);
+    if (popular.length >= 8) break;
+  }
 
   const trust = [
     {
