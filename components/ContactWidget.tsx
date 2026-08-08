@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useLocale } from './LocaleProvider';
-import { SOCIALS, PHONES } from '@/lib/contacts';
+import { SOCIALS } from '@/lib/contacts';
 
 // Плавающая кнопка-консультант: «Залишились питання?» → выбор мессенджера
 // (Telegram / Viber / Instagram Direct). Ведёт туда, где продавец и так на связи.
@@ -13,8 +13,7 @@ export function ContactWidget() {
 
   const tg = SOCIALS.find((s) => s.id === 'telegram')?.href || 'https://t.me/your_seller_ua';
   const ig = SOCIALS.find((s) => s.id === 'instagram')?.href || '';
-  const phoneDigits = (PHONES[0]?.href || '').replace(/\D/g, '');
-  const viber = `viber://chat?number=%2B${phoneDigits}`;
+  const viber = 'viber://chat?number=%2B380663842761';
 
   const t = ru
     ? { title: 'Остались вопросы?', sub: 'Напишите нам — всё решим 👇', aria: 'Связаться с нами', ig: 'Instagram Direct' }
