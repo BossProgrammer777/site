@@ -5,6 +5,7 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { HomeBanner } from '@/components/HomeBanner';
 import { ProductCard } from '@/components/ProductCard';
+import { ReviewsGrid } from '@/components/ReviewsGrid';
 import { getCategorySeo } from '@/lib/seo';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { dict, sectionLabel } from '@/lib/dictionaries';
@@ -188,6 +189,21 @@ export default async function HomePage({ params }: { params: { lang: Locale } })
               </Link>
             ))}
           </div>
+        </section>
+
+        {/* Отзывы клиентов: реальные скрины + видео из Instagram Direct.
+            Соцдоказательство — важно для доверия (реплики). */}
+        <section className="mt-14">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold sm:text-2xl">{tr.reviews}</h2>
+              <p className="mt-0.5 text-sm [color:#9fb3a6]">{tr.reviewsSub}</p>
+            </div>
+            <Link href={href('/reviews')} className="shrink-0 text-sm font-semibold text-brand hover:underline">
+              {tr.reviewsAll} →
+            </Link>
+          </div>
+          <ReviewsGrid limit={8} />
         </section>
       </main>
 

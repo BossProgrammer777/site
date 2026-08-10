@@ -10,6 +10,7 @@ export function SiteFooter() {
   const t = useT();
   const infoLinks = [
     { href: '/about', label: t.nav.about },
+    { href: '/reviews', label: t.nav.reviews },
     { href: '/delivery', label: t.nav.delivery },
     { href: '/warranty', label: t.nav.warranty },
     { href: '/offer', label: t.nav.offer },

@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const out: MetadataRoute.Sitemap = [];
 
   // Статические (индексируемые) страницы.
-  for (const p of ['', '/about', '/catalog', '/blog', '/delivery', '/warranty', '/offer', '/contacts']) {
+  for (const p of ['', '/about', '/catalog', '/reviews', '/blog', '/delivery', '/warranty', '/offer', '/contacts']) {
     out.push(...entry(p, now));
   }
 

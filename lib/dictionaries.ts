@@ -6,7 +6,7 @@
 import type { Locale } from './i18n';
 
 export interface Dict {
-  nav: { catalog: string; blog: string; about: string; delivery: string; warranty: string; offer: string; contacts: string };
+  nav: { catalog: string; blog: string; about: string; delivery: string; warranty: string; offer: string; contacts: string; reviews: string };
   search: { placeholder: string; showAll: string };
   footer: { shop: string; info: string; contacts: string; blog: string; cart: string; tagline: string; rights: string };
   home: {
@@ -22,6 +22,9 @@ export interface Dict {
     trustDelivery: string;
     trustPayment: string;
     trustReturn: string;
+    reviews: string; // заголовок блока отзывов
+    reviewsSub: string;
+    reviewsAll: string; // ссылка «все отзывы»
   };
   product: {
     code: string; country: string; size: string; chosen: string;
@@ -50,7 +53,7 @@ export interface Dict {
 }
 
 const uk: Dict = {
-  nav: { catalog: 'Каталог', blog: 'Блог', about: 'Про нас', delivery: 'Доставка та оплата', warranty: 'Гарантія та повернення', offer: 'Договір оферти', contacts: 'Контакти' },
+  nav: { catalog: 'Каталог', blog: 'Блог', about: 'Про нас', delivery: 'Доставка та оплата', warranty: 'Гарантія та повернення', offer: 'Договір оферти', contacts: 'Контакти', reviews: 'Відгуки' },
   search: { placeholder: 'Пошук товарів…', showAll: 'Показати всі результати' },
   footer: { shop: 'Магазин', info: 'Інформація', contacts: 'Контакти', blog: 'Блог', cart: 'Кошик', tagline: 'Інтернет-магазин футбольного взуття та екіпіровки. Актуальна наявність і чесні ціни.', rights: 'Усі права захищені.' },
   home: {
@@ -66,6 +69,9 @@ const uk: Dict = {
     trustDelivery: 'Доставка Новою Поштою',
     trustPayment: 'Оплата при отриманні',
     trustReturn: 'Обмін і повернення',
+    reviews: 'Відгуки клієнтів',
+    reviewsSub: 'Реальні відгуки з Instagram Direct 💚',
+    reviewsAll: 'Усі відгуки',
   },
   product: {
     code: 'Код', country: 'Країна', size: 'Розмір', chosen: 'обрано',
@@ -109,7 +115,7 @@ const uk: Dict = {
 };
 
 const ru: Dict = {
-  nav: { catalog: 'Каталог', blog: 'Блог', about: 'О нас', delivery: 'Доставка и оплата', warranty: 'Гарантия и возврат', offer: 'Договор оферты', contacts: 'Контакты' },
+  nav: { catalog: 'Каталог', blog: 'Блог', about: 'О нас', delivery: 'Доставка и оплата', warranty: 'Гарантия и возврат', offer: 'Договор оферты', contacts: 'Контакты', reviews: 'Отзывы' },
   search: { placeholder: 'Поиск товаров…', showAll: 'Показать все результаты' },
   footer: { shop: 'Магазин', info: 'Информация', contacts: 'Контакты', blog: 'Блог', cart: 'Корзина', tagline: 'Интернет-магазин футбольной обуви и экипировки. Актуальное наличие и честные цены.', rights: 'Все права защищены.' },
   home: {
@@ -125,6 +131,9 @@ const ru: Dict = {
     trustDelivery: 'Доставка Новой Почтой',
     trustPayment: 'Оплата при получении',
     trustReturn: 'Обмен и возврат',
+    reviews: 'Отзывы клиентов',
+    reviewsSub: 'Реальные отзывы из Instagram Direct 💚',
+    reviewsAll: 'Все отзывы',
   },
   product: {
     code: 'Код', country: 'Страна', size: 'Размер', chosen: 'выбрано',
