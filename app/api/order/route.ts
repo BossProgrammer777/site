@@ -4,6 +4,7 @@ import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
+import { findPromo, promoDiscount } from '@/lib/promo';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,7 @@ interface OrderBody {
   delivery?: { city?: string; warehouse?: string };
   payment?: string;
   comment?: string;
+  promo?: string;
   items?: OrderItem[];
 }
 
@@ -80,10 +82,22 @@ export async function POST(req: NextRequest) {
     )
     .join('\n');
 
+  // Знижка за промокодом — рахуємо на сервері від перерахованого total.
+  const promo = findPromo(body.promo);
+  const discount = promoDiscount(total, body.promo);
+  const payTotal = Math.max(0, total - discount);
+
+  const totalBlock =
+    discount > 0 && promo
+      ? `💳 <b>Сума: ${formatUAH(total)}</b>\n` +
+        `🎁 <b>Знижка (${esc(promo.code)}): −${formatUAH(discount)}</b>\n` +
+        `💰 <b>До сплати: ${formatUAH(payTotal)}</b>`
+      : `💳 <b>Разом: ${formatUAH(total)}</b>`;
+
   const text =
     `🛒 <b>Нове замовлення Bootsbaza</b>\n\n` +
     `${itemsText}\n\n` +
-    `💳 <b>Разом: ${formatUAH(total)}</b>\n\n` +
+    `${totalBlock}\n\n` +
     `👤 <b>Клієнт:</b> ${esc(name)}\n` +
     `📞 <b>Телефон:</b> ${esc(phone)}\n` +
     `🏙 <b>Місто:</b> ${esc(city)}\n` +
@@ -95,7 +109,11 @@ export async function POST(req: NextRequest) {
   const itemsSummary = lines
     .map((l) => `${l.name} (${l.code}), р.${l.size} ×${l.qty}`)
     .join('; ');
-  const sheetComment = [payment ? `Оплата: ${payment}` : '', body.comment?.trim() || '']
+  const sheetComment = [
+    payment ? `Оплата: ${payment}` : '',
+    discount > 0 && promo ? `Промокод ${promo.code} −${formatUAH(discount)}` : '',
+    body.comment?.trim() || '',
+  ]
     .filter(Boolean)
     .join(' · ');
   const sheetPromise = appendOrderToSheet({
@@ -104,7 +122,7 @@ export async function POST(req: NextRequest) {
     city,
     warehouse,
     itemsSummary,
-    total,
+    total: payTotal,
     comment: sheetComment,
   }).catch(() => ({ saved: false }));
 
@@ -120,7 +138,7 @@ export async function POST(req: NextRequest) {
       sendTelegramOrder(text, photoUrls),
       sheetPromise,
     ]);
-    return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved, total });
+    return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved, total: payTotal });
   } catch (e) {
     // Даже если Telegram упал — заказ мог записаться в таблицу; но сообщаем об ошибке.
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502 });

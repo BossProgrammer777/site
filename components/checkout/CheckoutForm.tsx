@@ -6,6 +6,7 @@ import { LocaleLink } from '../LocaleLink';
 import { useLocale, useT } from '../LocaleProvider';
 import { localizeProductName } from '@/lib/productL10n';
 import { trackPurchase } from '@/lib/gtag';
+import { findPromo, promoDiscount } from '@/lib/promo';
 
 interface City {
   ref: string;
@@ -26,6 +27,23 @@ export function CheckoutForm() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [comment, setComment] = useState('');
+
+  // Промокод: вводится, применяется по кнопке. appliedPromo — уже применённый код.
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState('');
+  const [promoError, setPromoError] = useState(false);
+  const discount = promoDiscount(total, appliedPromo);
+  const payTotal = Math.max(0, total - discount);
+
+  const applyPromo = () => {
+    if (findPromo(promoInput)) {
+      setAppliedPromo(promoInput.trim());
+      setPromoError(false);
+    } else {
+      setAppliedPromo('');
+      setPromoError(true);
+    }
+  };
   const [payment, setPayment] = useState<'cod' | 'prepay'>('cod');
   const paymentLabel =
     payment === 'cod'
@@ -114,6 +132,7 @@ export function CheckoutForm() {
           delivery: { city: cityQuery, warehouse },
           payment: paymentLabel,
           comment,
+          promo: appliedPromo || undefined,
           items: items.map((i) => ({
             productId: i.productId,
             name: i.name,
@@ -128,7 +147,7 @@ export function CheckoutForm() {
       if (!res.ok || !data.ok) throw new Error(data.error || t.checkout.sendError);
       // Событие о покупке в аналитику/рекламу — до очистки корзины.
       trackPurchase({
-        value: total,
+        value: payTotal,
         currency: 'UAH',
         items: items.map((i) => ({
           id: i.code || i.productId,
@@ -290,6 +309,40 @@ export function CheckoutForm() {
           </div>
         </Field>
 
+        <Field label={t.checkout.promo}>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              value={promoInput}
+              onChange={(e) => {
+                setPromoInput(e.target.value);
+                setPromoError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  applyPromo();
+                }
+              }}
+              placeholder={t.checkout.promoPh}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={applyPromo}
+              className="shrink-0 rounded-xl border border-brand/50 bg-ink-900 px-4 py-2.5 text-sm font-semibold text-brand transition hover:bg-ink-800"
+            >
+              {t.checkout.promoApply}
+            </button>
+          </div>
+          {discount > 0 && (
+            <p className="mt-1.5 text-xs font-semibold text-brand">✓ {t.checkout.promoApplied}</p>
+          )}
+          {promoError && (
+            <p className="mt-1.5 text-xs text-red-400">{t.checkout.promoInvalid}</p>
+          )}
+        </Field>
+
         <Field label={t.checkout.comment}>
           <textarea
             className={inputCls}
@@ -307,7 +360,7 @@ export function CheckoutForm() {
           disabled={submitting}
           className="w-full rounded-xl bg-brand px-6 py-3 text-sm font-bold text-ink-950 transition hover:bg-brand-400 disabled:opacity-60"
         >
-          {submitting ? t.checkout.submitting : `${t.checkout.confirm} · ${formatUAH(total)}`}
+          {submitting ? t.checkout.submitting : `${t.checkout.confirm} · ${formatUAH(payTotal)}`}
         </button>
       </form>
 
@@ -327,10 +380,27 @@ export function CheckoutForm() {
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex items-center justify-between border-t border-ink-800 pt-3">
-          <span className="text-sm [color:#c3d3c8]">{t.cart.total}</span>
-          <span className="text-xl font-extrabold text-brand">{formatUAH(total)}</span>
-        </div>
+        {discount > 0 ? (
+          <div className="mt-4 space-y-1.5 border-t border-ink-800 pt-3">
+            <div className="flex items-center justify-between text-sm [color:#9fb3a6]">
+              <span>{t.checkout.subtotal}</span>
+              <span>{formatUAH(total)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm text-brand">
+              <span>{t.checkout.discount} ({appliedPromo.toUpperCase()})</span>
+              <span>−{formatUAH(discount)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-sm [color:#c3d3c8]">{t.checkout.toPay}</span>
+              <span className="text-xl font-extrabold text-brand">{formatUAH(payTotal)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center justify-between border-t border-ink-800 pt-3">
+            <span className="text-sm [color:#c3d3c8]">{t.cart.total}</span>
+            <span className="text-xl font-extrabold text-brand">{formatUAH(total)}</span>
+          </div>
+        )}
         <p className="mt-2 flex items-start gap-1.5 text-xs [color:#7d8f83]">
           <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="1" y="6" width="13" height="10" rx="1" />
