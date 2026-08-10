@@ -27,7 +27,7 @@ export async function listFolderMedia(folderId: string): Promise<FolderMedia> {
   const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
   const url =
     `https://www.googleapis.com/drive/v3/files?q=${q}&key=${key}` +
-    `&fields=files(id,name,mimeType)&orderBy=name&pageSize=50`;
+    `&fields=files(id,name,mimeType)&orderBy=name&pageSize=1000`;
 
   try {
     const res = await fetch(url, { cache: 'no-store' });
