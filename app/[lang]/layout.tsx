@@ -5,6 +5,7 @@ import { CartProvider } from '@/components/cart/CartContext';
 import { FavoritesProvider } from '@/components/favorites/FavoritesContext';
 import { Analytics } from '@/components/Analytics';
 import { ContactWidget } from '@/components/ContactWidget';
+import { DiscountPopup } from '@/components/DiscountPopup';
 import { siteUrl, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { organizationJsonLd, websiteJsonLd, jsonLdScript } from '@/lib/seo';
 import { LOCALES, isLocale, type Locale } from '@/lib/i18n';
@@ -66,6 +67,7 @@ export default function RootLayout({
           <FavoritesProvider>
             <CartProvider>{children}</CartProvider>
             <ContactWidget />
+            <DiscountPopup />
           </FavoritesProvider>
         </LocaleProvider>
         <Analytics />
