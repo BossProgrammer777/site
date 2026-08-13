@@ -126,6 +126,34 @@ export async function POST(req: NextRequest) {
     comment: sheetComment,
   }).catch(() => ({ saved: false }));
 
+  // Дублируем заказ в CRM (если настроено) — не блокируя основной ответ.
+  // Telegram и таблица работают как прежде; это добавляется параллельно.
+  const crmUrl = process.env.CRM_INGEST_URL;
+  const crmToken = process.env.CRM_SYNC_TOKEN;
+  const crmPromise =
+    crmUrl && crmToken
+      ? fetch(crmUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-crm-token': crmToken },
+          body: JSON.stringify({
+            customer: { name, phone, city, warehouse },
+            source: 'WEBSITE',
+            paymentMethod: /передопла|предопла/i.test(payment || '') ? 'BANK_TRANSFER' : 'COD',
+            comment: body.comment?.trim() || '',
+            items: lines.map((l) => ({
+              code: l.code,
+              name: l.name,
+              size: l.size,
+              price: l.price,
+              qty: l.qty,
+              drop: catalog.dropByCode?.[l.code] ?? 0,
+            })),
+          }),
+        })
+          .then(() => undefined)
+          .catch(() => undefined)
+      : Promise.resolve();
+
   // Фото товаров для Telegram: прямые URL (в обход прокси/домена).
   const base = siteUrl();
   const photoUrls = lines
@@ -137,6 +165,7 @@ export async function POST(req: NextRequest) {
     const [result, sheet] = await Promise.all([
       sendTelegramOrder(text, photoUrls),
       sheetPromise,
+      crmPromise,
     ]);
     return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved, total: payTotal });
   } catch (e) {
