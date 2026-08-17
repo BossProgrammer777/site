@@ -503,12 +503,32 @@ export function productJsonLd(p: Product, url: string, brand: string | null) {
   const base = siteUrl();
   // Абсолютный URL картинки: productImageSrc даёт /photos/… либо /api/img?src=…
   const image = `${base}${productImageSrc(p.image)}`;
+
+  // Описание для schema (совпадает с фактическим смыслом карточки).
+  const inStockSizes = p.sizes.filter((s) => s.inStock).map((s) => s.label).join(', ');
+  const description = [
+    p.name + '.',
+    brand ? `Бренд: ${brand}.` : '',
+    inStockSizes ? `Розміри в наявності: ${inStockSizes}.` : '',
+    `Ціна ${p.finalPrice} грн.`,
+    'Доставка Новою Поштою по всій Україні, можлива оплата при отриманні.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  // Цена действительна ~1 год (Google рекомендует priceValidUntil).
+  const valid = new Date();
+  valid.setFullYear(valid.getFullYear() + 1);
+  const priceValidUntil = valid.toISOString().slice(0, 10);
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: p.name,
+    description,
     image: [image],
     sku: p.code || p.id,
+    mpn: p.code || p.id,
     ...(brand ? { brand: { '@type': 'Brand', name: brand } } : {}),
     ...(p.country ? { countryOfOrigin: p.country } : {}),
     offers: {
@@ -516,6 +536,8 @@ export function productJsonLd(p: Product, url: string, brand: string | null) {
       url,
       priceCurrency: 'UAH',
       price: p.finalPrice,
+      priceValidUntil,
+      itemCondition: 'https://schema.org/NewCondition',
       availability: p.anyInStock
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
