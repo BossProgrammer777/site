@@ -71,6 +71,36 @@ export async function POST(req: NextRequest) {
     comment: 'Швидке замовлення (1 клік) — передзвонити, уточнити розмір і доставку',
   }).catch(() => ({ saved: false }));
 
+  // Дублируем заказ в CRM (как обычный заказ). Быстрый заказ — только телефон;
+  // размер/доставку менеджер уточняет по звонку и дозаполняет в CRM.
+  const crmUrl = process.env.CRM_INGEST_URL;
+  const crmToken = process.env.CRM_SYNC_TOKEN;
+  const crmPromise =
+    crmUrl && crmToken
+      ? fetch(crmUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-crm-token': crmToken },
+          body: JSON.stringify({
+            customer: { name: '', phone, city: '', warehouse: '' },
+            source: 'WEBSITE',
+            paymentMethod: 'COD',
+            comment: 'Швидке замовлення (1 клік) — уточнити розмір і доставку',
+            items: [
+              {
+                code: product.code,
+                name: product.name,
+                size: size || '',
+                price: product.price,
+                qty,
+                drop: catalog.dropByCode?.[product.code] ?? 0,
+              },
+            ],
+          }),
+        })
+          .then(() => undefined)
+          .catch(() => undefined)
+      : Promise.resolve();
+
   const base = siteUrl();
   const photoUrl = telegramPhotoUrl(product.image, base);
 
@@ -78,6 +108,7 @@ export async function POST(req: NextRequest) {
     const [result, sheet] = await Promise.all([
       sendTelegramOrder(text, photoUrl ? [photoUrl] : []),
       sheetPromise,
+      crmPromise,
     ]);
     return NextResponse.json({ ok: true, sent: result.sent, saved: sheet.saved });
   } catch (e) {
