@@ -41,6 +41,7 @@ function toProduct(it: CrmFeedItem): Product {
     country: it.country || '',
     finalPrice: it.finalPrice,
     image: it.image || (it.images && it.images[0]) || null,
+    images: (it.images || []).filter((u): u is string => !!u),
     sizes,
     sizeGrid: [],
     notes: it.notes || null,

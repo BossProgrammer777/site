@@ -46,7 +46,10 @@ export function ProductDetail({ product }: { product: Product }) {
   const { add } = useCart();
   const t = useT();
   const locale = useLocale();
-  const baseImages = product.image ? [productImageSrc(product.image)] : [];
+  // Галерея: если у товара есть список фото (напр. из CRM) — берём все; иначе главное.
+  const galleryUrls = (product.images && product.images.length ? product.images : (product.image ? [product.image] : []))
+    .map((u) => productImageSrc(u));
+  const baseImages = Array.from(new Set(galleryUrls));
   const [images, setImages] = useState<string[]>(baseImages.length ? baseImages : [PLACEHOLDER]);
   const [mainIdx, setMainIdx] = useState(0);
   const [mainBroken, setMainBroken] = useState(false);

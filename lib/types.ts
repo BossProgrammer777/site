@@ -23,6 +23,8 @@ export interface Product {
   finalPrice: number;
   /** URL картинки (может быть проксирован) либо null → плейсхолдер. */
   image: string | null;
+  /** Доп. фото галереи (напр. из CRM). Главное — image; здесь все по порядку. */
+  images?: string[];
   sizes: SizeAvailability[];
   /** Строки размерной сетки EU/UK/US/см. */
   sizeGrid: string[];
