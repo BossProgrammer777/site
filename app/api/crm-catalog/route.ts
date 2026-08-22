@@ -18,7 +18,11 @@ export async function GET(req: NextRequest) {
   const drop = catalog.dropByCode || {};
 
   const products = catalog.sections.flatMap((section) =>
-    section.products.map((p) => ({
+    section.products
+      // Не отдаём обратно в CRM товары, которые сами же пришли ИЗ CRM
+      // (id = "crm-…") — иначе синк сайт→CRM перезапишет им поставщика/закупку.
+      .filter((p) => !p.id.startsWith('crm-'))
+      .map((p) => ({
       code: p.code,
       name: p.name,
       group: p.group,
