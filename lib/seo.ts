@@ -520,6 +520,30 @@ export function productJsonLd(p: Product, url: string, brand: string | null) {
   const valid = new Date();
   valid.setFullYear(valid.getFullYear() + 1);
   const priceValidUntil = valid.toISOString().slice(0, 10);
+  const validFrom = new Date().toISOString().slice(0, 10); // цена действительна с сегодня
+
+  // Доставка Новой Почтой по Украине (оплата по тарифам НП, ориентир ~70 грн).
+  const shippingDetails = {
+    '@type': 'OfferShippingDetails',
+    shippingRate: { '@type': 'MonetaryAmount', value: 70, currency: 'UAH' },
+    shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'UA' },
+    deliveryTime: {
+      '@type': 'ShippingDeliveryTime',
+      handlingTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 1, unitCode: 'DAY' },
+      transitTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 3, unitCode: 'DAY' },
+    },
+  };
+
+  // Возврат 14 дней по Украине; обратную пересылку оплачивает покупатель.
+  const returnPolicy = {
+    '@type': 'MerchantReturnPolicy',
+    applicableCountry: 'UA',
+    returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+    merchantReturnDays: 14,
+    returnMethod: 'https://schema.org/ReturnByMail',
+    returnFees: 'https://schema.org/ReturnShippingFees',
+    returnShippingFeesAmount: { '@type': 'MonetaryAmount', value: 70, currency: 'UAH' },
+  };
 
   return {
     '@context': 'https://schema.org',
@@ -536,12 +560,15 @@ export function productJsonLd(p: Product, url: string, brand: string | null) {
       url,
       priceCurrency: 'UAH',
       price: p.finalPrice,
+      validFrom,
       priceValidUntil,
       itemCondition: 'https://schema.org/NewCondition',
       availability: p.anyInStock
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       seller: { '@type': 'Organization', name: SITE_NAME },
+      shippingDetails,
+      hasMerchantReturnPolicy: returnPolicy,
     },
   };
 }
