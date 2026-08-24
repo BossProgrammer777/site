@@ -7,12 +7,31 @@
 // участия пользователя (см. ensureBackgroundRefresh).
 // ---------------------------------------------------------------------------
 
-import { CACHE_TTL_SECONDS, CACHE_HARD_TTL_SECONDS } from './config';
+import { CACHE_TTL_SECONDS, CACHE_HARD_TTL_SECONDS, MIN_SITE_QTY } from './config';
 import { hasAnyCredential } from './googleAuth';
 import { fetchLiveCatalog } from './sheets';
 import { getDemoCatalog } from './demoData';
 import { fetchCrmProducts } from './crmFeed';
 import { Catalog } from './types';
+
+// Правило ВИТРИНЫ: размер доступен только при остатке ≥ MIN_SITE_QTY (по умолч. 2).
+// Размеры с остатком 1 не показываем; товар без доступных размеров скрываем.
+// Не мутирует исходный кэш (crm-catalog должен видеть реальные остатки, включая 1).
+function withMinStock(catalog: Catalog): Catalog {
+  const MIN = MIN_SITE_QTY;
+  const sections = catalog.sections.map((section) => {
+    const products = section.products
+      .map((p) => {
+        const sizes = p.sizes.map((s) => ({ ...s, inStock: s.qty >= MIN }));
+        return { ...p, sizes, anyInStock: sizes.some((s) => s.inStock) };
+      })
+      .filter((p) => p.anyInStock);
+    const countries = Array.from(new Set(products.map((p) => p.country).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'uk'));
+    return { ...section, products, countries };
+  });
+  return { ...catalog, sections };
+}
 
 // Подмешивает товары из CRM (помеченные «выгрузить на сайт») в разделы каталога.
 // Slug каждого CRM-товара делаем уникальным относительно уже собранных.
@@ -104,4 +123,11 @@ export async function getCatalog(): Promise<Catalog> {
 export async function forceRefresh(): Promise<Catalog> {
   cache = null;
   return refresh();
+}
+
+// Каталог ДЛЯ ВИТРИНЫ: как getCatalog, но с правилом «показывать размер только при
+// остатке ≥ MIN_SITE_QTY». Используется на всех публичных страницах и в приёме заказов.
+// getCatalog() остаётся «сырым» (реальные остатки) — для фида сайт→CRM.
+export async function getPublicCatalog(): Promise<Catalog> {
+  return withMinStock(await getCatalog());
 }

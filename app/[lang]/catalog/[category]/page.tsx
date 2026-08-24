@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
@@ -46,7 +46,7 @@ export default async function CategoryPage({ params }: { params: { lang: Locale;
   const seo = categoryCopy(params.category, params.lang);
   if (!seo) notFound();
 
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   const base = siteUrl();
   const bc = dict[params.lang].breadcrumb;
   const lh = (p: string) => localeHref(params.lang, p);

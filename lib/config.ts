@@ -28,6 +28,13 @@ export const GEAR_MARKUP_PERCENT = Number(process.env.GEAR_MARKUP_PERCENT ?? 0.4
 export const PRICE_ROUND_TO = Number(process.env.PRICE_ROUND_TO ?? 10);
 
 /**
+ * Минимальный остаток размера, чтобы показывать его на сайте как доступный.
+ * По умолчанию 2: размеры с остатком 1 на витрину не выводим (страховой остаток).
+ * Товар, у которого не осталось ни одного размера с ≥ MIN, на сайте не показывается.
+ */
+export const MIN_SITE_QTY = Number(process.env.MIN_SITE_QTY ?? 2);
+
+/**
  * Финальная цена покупателя от базовой (дроп) цены, округлённая вверх до
  * ближайшего кратного PRICE_ROUND_TO.
  *  - Обувь:      base + 500 грн.

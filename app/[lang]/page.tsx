@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { HomeBanner } from '@/components/HomeBanner';
@@ -28,7 +28,7 @@ function tileImage(image: string | null): string {
 }
 
 export default async function HomePage({ params }: { params: { lang: Locale } }) {
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   const totalProducts = catalog.sections.reduce((n, s) => n + s.products.length, 0);
   const tr = dict[params.lang].home;
   const href = (p: string) => localeHref(params.lang, p);

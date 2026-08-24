@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Вкажіть коректний номер телефону' }, { status: 400 });
   }
 
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   let product = null as
     | { name: string; code: string; price: number; image: string | null; slug: string }
     | null;

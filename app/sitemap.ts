@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { siteUrl } from '@/lib/site';
 import { categoryLandingSlugs, getCategorySeo } from '@/lib/seo';
 import { BRAND_LANDINGS, detectBrand } from '@/lib/brand';
@@ -46,7 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   try {
-    const catalog = await getCatalog();
+    const catalog = await getPublicCatalog();
 
     // Карточки товаров.
     for (const s of catalog.sections) {

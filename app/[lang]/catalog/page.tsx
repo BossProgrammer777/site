@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
@@ -31,7 +31,7 @@ export default async function CatalogPage({
     pmax?: string;
   };
 }) {
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   const split = (v?: string) =>
     v ? v.split(',').map((s) => s.trim()).filter(Boolean) : [];
 

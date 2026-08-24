@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { ProductDetail } from '@/components/ProductDetail';
@@ -23,7 +23,7 @@ export async function generateMetadata({
   params: { lang: Locale; id: string };
 }): Promise<Metadata> {
   const key = decodeURIComponent(params.id);
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   let product = null as (typeof catalog.sections)[number]['products'][number] | null;
   let sectionSlug = '';
   for (const s of catalog.sections) {
@@ -58,7 +58,7 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: { params: { lang: Locale; id: string } }) {
   const key = decodeURIComponent(params.id);
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   const lang = params.lang;
   const bc = dict[lang].breadcrumb;
   const lh = (p: string) => localeHref(lang, p);

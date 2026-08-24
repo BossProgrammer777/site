@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 // Есть ли товары этого бренда в этом разделе (чтобы не плодить пустые страницы).
 async function brandHasProducts(sectionSlug: string, brand: string): Promise<boolean> {
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   const section = catalog.sections.find((s) => s.slug === sectionSlug);
   if (!section) return false;
   return section.products.some(
@@ -52,7 +52,7 @@ export default async function BrandCategoryPage({
   if (!(await brandHasProducts(cat.slug, brand))) notFound();
 
   const seo = brandCategorySeo(cat, brand, params.lang);
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   const base = siteUrl();
   const bc = dict[params.lang].breadcrumb;
   const lh = (p: string) => localeHref(params.lang, p);

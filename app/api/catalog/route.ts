@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -7,7 +7,7 @@ export const revalidate = 0;
 // Отдаёт кэшированный каталог. В ответе НЕТ дроп-цены и НЕТ времени
 // обновления для покупателя — только публичные поля товара с finalPrice.
 export async function GET() {
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   return NextResponse.json(
     { sections: catalog.sections },
     {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import type { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   // Разбиваем запрос на слова — товар должен содержать все слова (в любом порядке).
   const words = q.split(' ').filter(Boolean);
 
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
 
   // Собираем все товары из всех разделов, убираем дубли по slug.
   const seen = new Set<string>();

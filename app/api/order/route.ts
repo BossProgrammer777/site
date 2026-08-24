@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCatalog } from '@/lib/cache';
+import { getPublicCatalog } from '@/lib/cache';
 import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (items.length === 0) return NextResponse.json({ ok: false, error: 'Кошик порожній' }, { status: 400 });
 
   // Пересчитываем цены по актуальному каталогу (не доверяем ценам с клиента).
-  const catalog = await getCatalog();
+  const catalog = await getPublicCatalog();
   const priceById = new Map<
     string,
     { price: number; name: string; code: string; image: string | null }
