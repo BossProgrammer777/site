@@ -12,6 +12,8 @@ interface QuickBody {
   size?: string;
   phone?: string;
   qty?: number;
+  src?: string;
+  srcDetail?: string;
 }
 
 const esc = (s: string) =>
@@ -83,6 +85,8 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             customer: { name: '', phone, city: '', warehouse: '' },
             source: 'WEBSITE',
+            refSource: body.src || '',
+            refDetail: body.srcDetail || '',
             paymentMethod: 'COD',
             comment: 'Швидке замовлення (1 клік) — уточнити розмір і доставку',
             items: [

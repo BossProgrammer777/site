@@ -23,6 +23,8 @@ interface OrderBody {
   comment?: string;
   promo?: string;
   items?: OrderItem[];
+  src?: string;
+  srcDetail?: string;
 }
 
 const esc = (s: string) =>
@@ -138,6 +140,8 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             customer: { name, phone, city, warehouse },
             source: 'WEBSITE',
+            refSource: body.src || '',
+            refDetail: body.srcDetail || '',
             paymentMethod: /передопла|предопла/i.test(payment || '') ? 'BANK_TRANSFER' : 'COD',
             comment: body.comment?.trim() || '',
             items: lines.map((l) => ({

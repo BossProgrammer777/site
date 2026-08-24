@@ -6,6 +6,7 @@ import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
 import { FavoriteButton } from './favorites/FavoriteButton';
 import { productImageSrc, PLACEHOLDER } from '@/lib/img';
+import { getAttribution } from '@/lib/attribution';
 import { useLocale, useT } from './LocaleProvider';
 import { localeHref } from '@/lib/i18n';
 import { localizeProductName, localizeCountry } from '@/lib/productL10n';
@@ -112,7 +113,7 @@ export function ProductDetail({ product }: { product: Product }) {
       const res = await fetch('/api/quick-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, size, phone: quickPhone.trim(), qty }),
+        body: JSON.stringify({ productId: product.id, size, phone: quickPhone.trim(), qty, ...getAttribution() }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Помилка');

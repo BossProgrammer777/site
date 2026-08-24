@@ -4,6 +4,7 @@ import '../globals.css';
 import { CartProvider } from '@/components/cart/CartContext';
 import { FavoritesProvider } from '@/components/favorites/FavoritesContext';
 import { Analytics } from '@/components/Analytics';
+import { SourceTracker } from '@/components/SourceTracker';
 import { ContactWidget } from '@/components/ContactWidget';
 import { DiscountPopup } from '@/components/DiscountPopup';
 import { siteUrl, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
@@ -71,6 +72,7 @@ export default function RootLayout({
           </FavoritesProvider>
         </LocaleProvider>
         <Analytics />
+        <SourceTracker />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}

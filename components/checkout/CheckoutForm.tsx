@@ -7,6 +7,7 @@ import { useLocale, useT } from '../LocaleProvider';
 import { localizeProductName } from '@/lib/productL10n';
 import { trackPurchase } from '@/lib/gtag';
 import { findPromo, promoDiscount } from '@/lib/promo';
+import { getAttribution } from '@/lib/attribution';
 
 interface City {
   ref: string;
@@ -133,6 +134,7 @@ export function CheckoutForm() {
           payment: paymentLabel,
           comment,
           promo: appliedPromo || undefined,
+          ...getAttribution(),
           items: items.map((i) => ({
             productId: i.productId,
             name: i.name,
