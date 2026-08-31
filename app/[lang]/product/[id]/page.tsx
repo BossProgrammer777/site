@@ -6,6 +6,7 @@ import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { ProductDetail } from '@/components/ProductDetail';
 import { ProductSeoContent } from '@/components/ProductSeoContent';
+import { SimilarProducts } from '@/components/SimilarProducts';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
 import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
@@ -86,6 +87,18 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
   const productUrl = `${base}${lh(`/product/${encodeURIComponent(product.slug)}`)}`;
   const brand = detectBrand(`${product.group || ''} ${product.name}`, sectionSlug);
 
+  // Похожие товары: та же категория, только в наличии, приоритет — тот же бренд.
+  // Даёт внутренние ссылки товар→товар (ускоряет обход и индексацию Google).
+  const section = catalog.sections.find((s) => s.slug === sectionSlug);
+  const pool = (section?.products ?? []).filter(
+    (p) => p.slug !== product.slug && p.id !== product.id && p.anyInStock,
+  );
+  const sameBrand = brand
+    ? pool.filter((p) => detectBrand(`${p.group || ''} ${p.name}`, sectionSlug) === brand)
+    : [];
+  const sameBrandIds = new Set(sameBrand.map((p) => p.id));
+  const similar = [...sameBrand, ...pool.filter((p) => !sameBrandIds.has(p.id))].slice(0, 4);
+
   const crumbs = breadcrumbJsonLd([
     { name: bc.home, url: `${base}${lh('/')}` },
     { name: bc.catalog, url: `${base}${lh('/catalog')}` },
@@ -112,6 +125,12 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
         </nav>
         <ProductDetail product={product} />
         <ProductSeoContent product={product} sectionSlug={sectionSlug} locale={lang} />
+        <SimilarProducts
+          products={similar}
+          moreHref={catHref}
+          categoryLabel={sectionLabel}
+          locale={lang}
+        />
       </main>
       <SiteFooter />
       <script

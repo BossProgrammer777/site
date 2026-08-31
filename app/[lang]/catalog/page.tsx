@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { getPublicCatalog } from '@/lib/cache';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
-import { altMeta, Locale } from '@/lib/i18n';
+import { altMeta, localeHref, Locale } from '@/lib/i18n';
+import { categoryLandingSlugs } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +19,10 @@ export function generateMetadata({ params }: { params: { lang: Locale } }): Meta
 }
 
 export default async function CatalogPage({
+  params,
   searchParams,
 }: {
+  params: { lang: Locale };
   searchParams: {
     section?: string;
     cat?: string;
@@ -35,11 +39,33 @@ export default async function CatalogPage({
   const split = (v?: string) =>
     v ? v.split(',').map((s) => s.trim()).filter(Boolean) : [];
 
+  // Быстрые ссылки на SEO-посадочные категорий (внутренняя перелинковка →
+  // помогает индексации). Показываем только те, где реально есть товар.
+  const landing = new Set(categoryLandingSlugs());
+  const catLinks = catalog.sections
+    .filter((s) => landing.has(s.slug) && s.products.length > 0)
+    .map((s) => ({ slug: s.slug, label: s.label }));
+
   return (
     <>
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <h1 className="mb-6 text-2xl font-extrabold sm:text-3xl">Каталог</h1>
+        <h1 className="mb-4 text-2xl font-extrabold sm:text-3xl">Каталог</h1>
+
+        {catLinks.length > 0 && (
+          <nav className="mb-6 flex flex-wrap gap-2">
+            {catLinks.map((c) => (
+              <Link
+                key={c.slug}
+                href={localeHref(params.lang, `/catalog/${c.slug}`)}
+                className="rounded-lg border border-ink-700 bg-ink-900 px-3.5 py-1.5 text-sm font-semibold text-brand transition hover:border-brand/50"
+              >
+                {c.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+
         <CatalogBrowser
           sections={catalog.sections}
           initialSections={split(searchParams.section)}
