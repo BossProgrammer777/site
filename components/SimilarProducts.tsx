@@ -1,11 +1,19 @@
+'use client';
+
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { ProductCard } from './ProductCard';
+import { useSelectedSize } from './SelectedSizeContext';
 import { localeHref, type Locale } from '@/lib/i18n';
 
-// Блок «Схожі товари» под карточкой товара. Server component — ссылки на другие
-// товары попадают в SSR-HTML, тому Google переходить з однієї сторінки на іншу
-// (внутрішня перелінковка пришвидшує обхід і індексацію).
+// Блок «Схожі товари» под карточкой товара. Ссылки на другие товары попадают в
+// HTML (внутрішня перелінковка товар→товар пришвидшує обхід і індексацію).
+// Кандидаты приходят уже отранжированными (та сама модель → бренд → категорія);
+// тут довантажуємо реакцію на вибраний розмір — моделі з цим розміром угорі.
+function hasSize(p: Product, size: string): boolean {
+  return p.sizes.some((s) => s.label === size && s.inStock);
+}
+
 export function SimilarProducts({
   products,
   moreHref,
@@ -18,7 +26,16 @@ export function SimilarProducts({
   categoryLabel: string;
   locale: Locale;
 }) {
-  if (products.length === 0) return null;
+  const { size } = useSelectedSize();
+
+  // Если выбран размер — сначала модели, где он есть (порядок ранжирования
+  // сохраняется внутри групп), затем остальные. Иначе — как пришло.
+  const ordered = size
+    ? [...products.filter((p) => hasSize(p, size)), ...products.filter((p) => !hasSize(p, size))]
+    : products;
+  const shown = ordered.slice(0, 4);
+
+  if (shown.length === 0) return null;
 
   const title = locale === 'ru' ? 'Похожие товары' : 'Схожі товари';
   const more = locale === 'ru' ? `Все ${categoryLabel.toLowerCase()}` : `Усі ${categoryLabel.toLowerCase()}`;
@@ -35,8 +52,12 @@ export function SimilarProducts({
         </Link>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
+        {shown.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            preselectSize={size && hasSize(p, size) ? size : null}
+          />
         ))}
       </div>
     </section>

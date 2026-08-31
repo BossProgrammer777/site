@@ -8,6 +8,7 @@ import { FavoriteButton } from './favorites/FavoriteButton';
 import { productImageSrc, PLACEHOLDER } from '@/lib/img';
 import { getAttribution } from '@/lib/attribution';
 import { useLocale, useT } from './LocaleProvider';
+import { useSelectedSize } from './SelectedSizeContext';
 import { localeHref } from '@/lib/i18n';
 import { localizeProductName, localizeCountry } from '@/lib/productL10n';
 
@@ -83,8 +84,8 @@ export function ProductDetail({ product }: { product: Product }) {
     };
   }, [product.mediaUrl]);
 
-  const inStock = product.sizes.filter((s) => s.inStock);
-  const [size, setSize] = useState<string | null>(inStock.length === 1 ? inStock[0].label : null);
+  // Выбранный размер — из общего контекста страницы (его читает блок «Схожі товари»).
+  const { size, setSize } = useSelectedSize();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
 

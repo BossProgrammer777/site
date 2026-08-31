@@ -7,6 +7,7 @@ import { SiteFooter } from '@/components/SiteFooter';
 import { ProductDetail } from '@/components/ProductDetail';
 import { ProductSeoContent } from '@/components/ProductSeoContent';
 import { SimilarProducts } from '@/components/SimilarProducts';
+import { SelectedSizeProvider } from '@/components/SelectedSizeContext';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
 import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
@@ -17,6 +18,27 @@ import { localizeProductName } from '@/lib/productL10n';
 import { productKeywords } from '@/lib/productKeywords';
 
 export const dynamic = 'force-dynamic';
+
+// Слова, которые НЕ характеризуют модель (категория/тип покрытия) — исключаем,
+// чтобы «схожість» рахувалась по назві моделі, а не по спільних службових словах.
+const MODEL_NOISE = new Set([
+  'бутси', 'бутсы', 'сороконіжки', 'сороконожки', 'футзалки', 'взуття', 'обувь',
+  'fg', 'ag', 'sg', 'tf', 'ic', 'mg', 'turf', 'pro',
+]);
+
+function modelTokens(name: string, group: string | null): Set<string> {
+  const src = `${group || ''} ${name}`.toLowerCase();
+  const toks = src
+    .split(/[^a-zа-яіїєґ0-9]+/i)
+    .filter((w) => w.length >= 3 && !MODEL_NOISE.has(w));
+  return new Set(toks);
+}
+
+function sharedCount(a: Set<string>, b: Set<string>): number {
+  let n = 0;
+  for (const t of a) if (b.has(t)) n++;
+  return n;
+}
 
 export async function generateMetadata({
   params,
@@ -87,17 +109,24 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
   const productUrl = `${base}${lh(`/product/${encodeURIComponent(product.slug)}`)}`;
   const brand = detectBrand(`${product.group || ''} ${product.name}`, sectionSlug);
 
-  // Похожие товары: та же категория, только в наличии, приоритет — тот же бренд.
-  // Даёт внутренние ссылки товар→товар (ускоряет обход и индексацию Google).
+  // Похожие товары: та же категория, только в наличии. Ранжируем по совпадению
+  // слов названия/группы — так вверх идёт ТА ЖЕ модель (Tiempo→Tiempo), затем
+  // тот же бренд, затем остальные. Даёт внутренние ссылки товар→товар (ускоряет
+  // обход и индексацию Google). Отбор по выбранному размеру — на клиенте.
   const section = catalog.sections.find((s) => s.slug === sectionSlug);
   const pool = (section?.products ?? []).filter(
     (p) => p.slug !== product.slug && p.id !== product.id && p.anyInStock,
   );
-  const sameBrand = brand
-    ? pool.filter((p) => detectBrand(`${p.group || ''} ${p.name}`, sectionSlug) === brand)
-    : [];
-  const sameBrandIds = new Set(sameBrand.map((p) => p.id));
-  const similar = [...sameBrand, ...pool.filter((p) => !sameBrandIds.has(p.id))].slice(0, 4);
+  const curTokens = modelTokens(product.name, product.group);
+  const candidates = pool
+    .map((p) => ({ p, score: sharedCount(curTokens, modelTokens(p.name, p.group)) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 12)
+    .map((x) => x.p);
+
+  // Размер по умолчанию для страницы (авто-выбор, если в наличии ровно один).
+  const curInStock = product.sizes.filter((s) => s.inStock);
+  const initialSize = curInStock.length === 1 ? curInStock[0].label : null;
 
   const crumbs = breadcrumbJsonLd([
     { name: bc.home, url: `${base}${lh('/')}` },
@@ -123,14 +152,16 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
             {sectionLabel}
           </Link>
         </nav>
-        <ProductDetail product={product} />
-        <ProductSeoContent product={product} sectionSlug={sectionSlug} locale={lang} />
-        <SimilarProducts
-          products={similar}
-          moreHref={catHref}
-          categoryLabel={sectionLabel}
-          locale={lang}
-        />
+        <SelectedSizeProvider initial={initialSize}>
+          <ProductDetail product={product} />
+          <ProductSeoContent product={product} sectionSlug={sectionSlug} locale={lang} />
+          <SimilarProducts
+            products={candidates}
+            moreHref={catHref}
+            categoryLabel={sectionLabel}
+            locale={lang}
+          />
+        </SelectedSizeProvider>
       </main>
       <SiteFooter />
       <script

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { useCart, formatUAH } from './cart/CartContext';
@@ -18,7 +18,14 @@ function imageSrc(image: string | null): string {
   return PLACEHOLDER;
 }
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  preselectSize,
+}: {
+  product: Product;
+  /** Размер, выбранный на главном товаре (для блока «Схожі товари»). */
+  preselectSize?: string | null;
+}) {
   const { add } = useCart();
   const t = useT();
   const locale = useLocale();
@@ -28,9 +35,17 @@ export function ProductCard({ product }: { product: Product }) {
   const [imgSrc, setImgSrc] = useState(imageSrc(product.image));
   const [gridOpen, setGridOpen] = useState(false);
   const inStockSizes = product.sizes.filter((s) => s.inStock);
+  const hasPreselect = !!preselectSize && inStockSizes.some((s) => s.label === preselectSize);
   const [size, setSize] = useState<string | null>(
-    inStockSizes.length === 1 ? inStockSizes[0].label : null,
+    hasPreselect ? preselectSize! : inStockSizes.length === 1 ? inStockSizes[0].label : null,
   );
+  // Если пользователь сменил размер на главном товаре — подставляем его и здесь.
+  useEffect(() => {
+    if (preselectSize && inStockSizes.some((s) => s.label === preselectSize)) {
+      setSize(preselectSize);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectSize]);
   const [added, setAdded] = useState(false);
 
   const handleAdd = () => {
