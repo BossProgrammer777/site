@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getPublicCatalog } from '@/lib/cache';
+import { getPublicCatalog, getCatalog } from '@/lib/cache';
+import type { Catalog, Product } from '@/lib/types';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { ProductDetail } from '@/components/ProductDetail';
@@ -40,24 +41,46 @@ function sharedCount(a: Set<string>, b: Set<string>): number {
   return n;
 }
 
+type Found = { product: Product; sectionLabel: string; sectionSlug: string };
+function findProduct(catalog: Catalog, key: string): Found | null {
+  for (const s of catalog.sections) {
+    const p = s.products.find((x) => x.slug === key || x.id === key);
+    if (p) return { product: p, sectionLabel: s.label, sectionSlug: s.slug };
+  }
+  return null;
+}
+
+// Ищем товар: сперва в витрине (в наличии), потом в «сыром» каталоге.
+// Если найден только в сыром — он существует, но распродан (available=false):
+// отдаём страницу с пометкой «немає в наявності» + noindex, а не 404.
+async function locateProduct(key: string): Promise<{ hit: Found; available: boolean } | null> {
+  const pub = await getPublicCatalog();
+  const inPub = findProduct(pub, key);
+  if (inPub) return { hit: inPub, available: true };
+  const raw = await getCatalog();
+  const inRaw = findProduct(raw, key);
+  if (inRaw) {
+    // помечаем все размеры как недоступные, чтобы карточка показала «немає»
+    const product = {
+      ...inRaw.product,
+      sizes: inRaw.product.sizes.map((s) => ({ ...s, inStock: false })),
+      anyInStock: false,
+    };
+    return { hit: { ...inRaw, product }, available: false };
+  }
+  return null;
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: { lang: Locale; id: string };
 }): Promise<Metadata> {
   const key = decodeURIComponent(params.id);
-  const catalog = await getPublicCatalog();
-  let product = null as (typeof catalog.sections)[number]['products'][number] | null;
-  let sectionSlug = '';
-  for (const s of catalog.sections) {
-    const p = s.products.find((x) => x.slug === key || x.id === key);
-    if (p) {
-      product = p;
-      sectionSlug = s.slug;
-      break;
-    }
-  }
-  if (!product) return { title: 'Товар не знайдено' };
+  const located = await locateProduct(key);
+  if (!located) return { title: 'Товар не знайдено', robots: { index: false, follow: false } };
+  const { hit, available } = located;
+  const { product, sectionSlug } = hit;
 
   const name = localizeProductName(product.name, params.lang);
   const description =
@@ -69,6 +92,8 @@ export async function generateMetadata({
     description,
     keywords: productKeywords(product, sectionSlug, params.lang),
     alternates: altMeta(params.lang, `/product/${encodeURIComponent(product.slug)}`),
+    // Распроданный товар не индексируем (но переходы по ссылкам разрешаем).
+    robots: available ? undefined : { index: false, follow: true },
     openGraph: {
       title: name,
       description,
@@ -81,29 +106,16 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: { params: { lang: Locale; id: string } }) {
   const key = decodeURIComponent(params.id);
-  const catalog = await getPublicCatalog();
   const lang = params.lang;
   const bc = dict[lang].breadcrumb;
   const lh = (p: string) => localeHref(lang, p);
 
-  let found = null as
-    | {
-        product: (typeof catalog.sections)[number]['products'][number];
-        sectionLabel: string;
-        sectionSlug: string;
-      }
-    | null;
-  for (const s of catalog.sections) {
-    const p = s.products.find((x) => x.slug === key || x.id === key);
-    if (p) {
-      found = { product: p, sectionLabel: s.label, sectionSlug: s.slug };
-      break;
-    }
-  }
-  if (!found) notFound();
+  const located = await locateProduct(key);
+  if (!located) notFound();
+  const { hit, available } = located;
 
   const base = siteUrl();
-  const { product, sectionLabel, sectionSlug } = found;
+  const { product, sectionLabel, sectionSlug } = hit;
   const catSeo = getCategorySeo(sectionSlug);
   const catHref = catSeo ? `/catalog/${sectionSlug}` : '/catalog';
   const productUrl = `${base}${lh(`/product/${encodeURIComponent(product.slug)}`)}`;
@@ -113,7 +125,9 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
   // слов названия/группы — так вверх идёт ТА ЖЕ модель (Tiempo→Tiempo), затем
   // тот же бренд, затем остальные. Даёт внутренние ссылки товар→товар (ускоряет
   // обход и индексацию Google). Отбор по выбранному размеру — на клиенте.
-  const section = catalog.sections.find((s) => s.slug === sectionSlug);
+  // Кандидаты всегда из витрины (только в наличии), даже если сам товар распродан.
+  const pub = await getPublicCatalog();
+  const section = pub.sections.find((s) => s.slug === sectionSlug);
   const pool = (section?.products ?? []).filter(
     (p) => p.slug !== product.slug && p.id !== product.id && p.anyInStock,
   );
@@ -152,6 +166,13 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
             {sectionLabel}
           </Link>
         </nav>
+        {!available && (
+          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-300">
+            {lang === 'ru'
+              ? 'Временно нет в наличии. Посмотрите похожие модели ниже 👇'
+              : 'Тимчасово немає в наявності. Дивіться схожі моделі нижче 👇'}
+          </div>
+        )}
         <SelectedSizeProvider initial={initialSize}>
           <ProductDetail product={product} />
           <ProductSeoContent product={product} sectionSlug={sectionSlug} locale={lang} />
@@ -164,10 +185,12 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
         </SelectedSizeProvider>
       </main>
       <SiteFooter />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdScript(productJsonLd(product, productUrl, brand)) }}
-      />
+      {available && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(productJsonLd(product, productUrl, brand)) }}
+        />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(crumbs) }}
