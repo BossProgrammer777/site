@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
     `Код: ${esc(product.code)} · ${sizeText} · ${qty} шт.\n` +
     `Ціна: <b>${formatUAH(product.price * qty)}</b>\n\n` +
     `📞 <b>Телефон:</b> ${esc(phone)}\n` +
+    `🌐 <b>Джерело:</b> ${esc((body.src || '').trim() || 'Пряме')}\n` +
     `⚠️ <b>Передзвонити клієнту</b> — уточнити розмір і доставку.\n` +
     `🔗 ${siteUrl()}/product/${encodeURIComponent(product.slug)}`;
 

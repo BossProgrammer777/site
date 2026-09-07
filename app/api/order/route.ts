@@ -104,7 +104,8 @@ export async function POST(req: NextRequest) {
     `👤 <b>Клієнт:</b> ${esc(name)}\n` +
     `📞 <b>Телефон:</b> ${esc(phone)}\n` +
     `🏙 <b>Місто:</b> ${esc(city)}\n` +
-    `📦 <b>Відділення НП:</b> ${esc(warehouse)}` +
+    `📦 <b>Відділення НП:</b> ${esc(warehouse)}\n` +
+    `🌐 <b>Джерело:</b> ${esc((body.src || '').trim() || 'Пряме')}` +
     (payment ? `\n💳 <b>Оплата:</b> ${esc(payment)}` : '') +
     (body.comment?.trim() ? `\n📝 <b>Коментар:</b> ${esc(body.comment.trim())}` : '');
 
