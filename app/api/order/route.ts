@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPublicCatalog } from '@/lib/cache';
 import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
+import { forwardOrderToCrm } from '@/lib/crmIngest';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
@@ -129,34 +130,26 @@ export async function POST(req: NextRequest) {
   }).catch(() => ({ saved: false }));
 
   // Дублируем заказ в CRM (если настроено) — не блокируя основной ответ.
-  // Telegram и таблица работают как прежде; это добавляется параллельно.
-  const crmUrl = process.env.CRM_INGEST_URL;
-  const crmToken = process.env.CRM_SYNC_TOKEN;
-  const crmPromise =
-    crmUrl && crmToken
-      ? fetch(crmUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-crm-token': crmToken },
-          body: JSON.stringify({
-            customer: { name, phone, city, warehouse },
-            source: 'WEBSITE',
-            refSource: body.src || '',
-            refDetail: body.srcDetail || '',
-            paymentMethod: /передопла|предопла/i.test(payment || '') ? 'BANK_TRANSFER' : 'COD',
-            comment: body.comment?.trim() || '',
-            items: lines.map((l) => ({
-              code: l.code,
-              name: l.name,
-              size: l.size,
-              price: l.price,
-              qty: l.qty,
-              drop: catalog.dropByCode?.[l.code] ?? 0,
-            })),
-          }),
-        })
-          .then(() => undefined)
-          .catch(() => undefined)
-      : Promise.resolve();
+  // Провал форварда НЕ глушим — forwardOrderToCrm шлёт алерт в Telegram.
+  const crmPromise = forwardOrderToCrm(
+    {
+      customer: { name, phone, city, warehouse },
+      source: 'WEBSITE',
+      refSource: body.src || '',
+      refDetail: body.srcDetail || '',
+      paymentMethod: /передопла|предопла/i.test(payment || '') ? 'BANK_TRANSFER' : 'COD',
+      comment: body.comment?.trim() || '',
+      items: lines.map((l) => ({
+        code: l.code,
+        name: l.name,
+        size: l.size,
+        price: l.price,
+        qty: l.qty,
+        drop: catalog.dropByCode?.[l.code] ?? 0,
+      })),
+    },
+    `${phone} · ${lines.length} поз.`,
+  );
 
   // Фото товаров для Telegram: прямые URL (в обход прокси/домена).
   const base = siteUrl();

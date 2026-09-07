@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPublicCatalog } from '@/lib/cache';
 import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
+import { forwardOrderToCrm } from '@/lib/crmIngest';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
@@ -75,35 +76,28 @@ export async function POST(req: NextRequest) {
 
   // Дублируем заказ в CRM (как обычный заказ). Быстрый заказ — только телефон;
   // размер/доставку менеджер уточняет по звонку и дозаполняет в CRM.
-  const crmUrl = process.env.CRM_INGEST_URL;
-  const crmToken = process.env.CRM_SYNC_TOKEN;
-  const crmPromise =
-    crmUrl && crmToken
-      ? fetch(crmUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-crm-token': crmToken },
-          body: JSON.stringify({
-            customer: { name: '', phone, city: '', warehouse: '' },
-            source: 'WEBSITE',
-            refSource: body.src || '',
-            refDetail: body.srcDetail || '',
-            paymentMethod: 'COD',
-            comment: 'Швидке замовлення (1 клік) — уточнити розмір і доставку',
-            items: [
-              {
-                code: product.code,
-                name: product.name,
-                size: size || '',
-                price: product.price,
-                qty,
-                drop: catalog.dropByCode?.[product.code] ?? 0,
-              },
-            ],
-          }),
-        })
-          .then(() => undefined)
-          .catch(() => undefined)
-      : Promise.resolve();
+  // Провал форварда НЕ глушим — forwardOrderToCrm шлёт алерт в Telegram.
+  const crmPromise = forwardOrderToCrm(
+    {
+      customer: { name: '', phone, city: '', warehouse: '' },
+      source: 'WEBSITE',
+      refSource: body.src || '',
+      refDetail: body.srcDetail || '',
+      paymentMethod: 'COD',
+      comment: 'Швидке замовлення (1 клік) — уточнити розмір і доставку',
+      items: [
+        {
+          code: product.code,
+          name: product.name,
+          size: size || '',
+          price: product.price,
+          qty,
+          drop: catalog.dropByCode?.[product.code] ?? 0,
+        },
+      ],
+    },
+    `швидке · ${phone} · ${product.name}`,
+  );
 
   const base = siteUrl();
   const photoUrl = telegramPhotoUrl(product.image, base);
