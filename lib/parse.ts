@@ -12,7 +12,7 @@
 
 import { COLUMN_KEYWORDS, SheetDef, computeFinalPrice } from './config';
 import { Product, SizeAvailability } from './types';
-import { productSlug } from './slug';
+import { productSlug, stableKey } from './slug';
 import { canonCountry } from './productL10n';
 
 /** Унифицированное представление ячейки после нормализации grid data. */
@@ -398,9 +398,12 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
 
     counter += 1;
     const displayName = nameCell.text || `Модель ${codeCell.text}`;
+    // Запасной ключ для товаров без коду — стабільний (з назви), а НЕ порядковий
+    // номер рядка: інакше адреса «пливе» при змінах прайсу й плодяться 404.
+    const key = codeCell.text || stableKey(displayName || String(counter));
     const product: Product = {
-      id: `${sheet.slug}-${codeCell.text || counter}`,
-      slug: productSlug(displayName, codeCell.text || String(counter)),
+      id: `${sheet.slug}-${key}`,
+      slug: productSlug(displayName, key),
       code: codeCell.text,
       name: displayName,
       country: canonCountry(cellAt(row, cols.country).text),

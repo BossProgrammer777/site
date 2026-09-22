@@ -28,3 +28,17 @@ export function productSlug(name: string, code: string): string {
   const c = slugify(code);
   return c ? `${base}-${c}` : base;
 }
+
+/**
+ * Стабильный короткий ключ из строки (детерминированный хэш → base36).
+ * Используется как запасной «код» для товаров без кода в прайсе — чтобы их
+ * адрес НЕ зависел от позиции строки в таблице и не «плыл» (не плодил 404)
+ * при изменениях прайса поставщиком.
+ */
+export function stableKey(input: string): string {
+  let h = 5381;
+  for (let i = 0; i < input.length; i++) {
+    h = ((h * 33) ^ input.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(36);
+}
