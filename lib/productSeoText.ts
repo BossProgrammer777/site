@@ -14,11 +14,18 @@ import { formatUAH } from './format';
 
 type Kind = 'boots' | 'turf' | 'indoor' | 'kids' | 'equip';
 
-function sectionKind(sectionSlug: string): Kind {
+function sectionKind(sectionSlug: string, text = ''): Kind {
   if (sectionSlug === 'sorokonizhky') return 'turf';
   if (sectionSlug === 'futzalky') return 'indoor';
   if (sectionSlug === 'dytiache-vzuttia' || sectionSlug === 'nb-dytiache-vzuttia') return 'kids';
   if (sectionSlug === 'ekipiruvannia' || sectionSlug === 'nb-ekipiruvannia') return 'equip';
+  // «Взуття без бренду» — один раздел на все виды обуви: вид берём из названия
+  // (слово или маркировка подошвы), иначе — бутсы.
+  if (sectionSlug === 'nb-vzuttia' && text) {
+    const sole = soleFromName(text);
+    if (/сороконіж|сороконож|багатошип|многошип/i.test(text) || sole === 'TF') return 'turf';
+    if (/футзал/i.test(text) || sole === 'IC') return 'indoor';
+  }
   return 'boots'; // butsy, nb-vzuttia
 }
 
@@ -36,7 +43,7 @@ function equipType(name: string, ru: boolean): string {
 
 // Существительное типа товара (для строки «Тип» и начала описания).
 function typeNoun(sectionSlug: string, name: string, ru: boolean): string {
-  switch (sectionKind(sectionSlug)) {
+  switch (sectionKind(sectionSlug, name)) {
     case 'turf':
       return ru ? 'Сороконожки (многошиповки)' : 'Сороконіжки (багатошиповки)';
     case 'indoor':
@@ -118,9 +125,9 @@ function soleFromName(name: string): SoleCode | null {
 
 /** Тип подошвы товара (или null, если маркировки нет / это не обувь). */
 export function productSole(p: { name: string; group: string | null }, sectionSlug: string, locale: Locale): SoleInfo | null {
-  const kind = sectionKind(sectionSlug);
-  if (kind === 'equip') return null;
   const text = `${p.group || ''} ${p.name}`;
+  const kind = sectionKind(sectionSlug, text);
+  if (kind === 'equip') return null;
   const kidsTurf = kind === 'kids' && /сороконіж|сороконож/i.test(text);
   const kidsIndoor = kind === 'kids' && /футзал/i.test(text);
   let code: SoleCode | null;
@@ -136,7 +143,7 @@ export function productSole(p: { name: string; group: string | null }, sectionSl
 // Короткое название типа (для <title>, если в названии товара его нет).
 const TYPE_WORD = /бутс|сороконіж|сороконож|футзал|копочк|щитк|гетр|рукавиц|перчат|м.?яч|мяч|сумк|мішок|мешок|термо|шкарпет|носк/i;
 function shortType(sectionSlug: string, text: string, ru: boolean): string | null {
-  switch (sectionKind(sectionSlug)) {
+  switch (sectionKind(sectionSlug, text)) {
     case 'turf':
       return ru ? 'Сороконожки' : 'Сороконіжки';
     case 'indoor':
@@ -166,7 +173,7 @@ export function productTitle(p: { name: string; group: string | null }, sectionS
 // Вводная фраза (намеренно НЕ повторяет бренд — он уже в названии). Опирается
 // на реальный тип подошвы; без маркировки — нейтрально, без выдуманных свойств.
 function kindLead(sectionSlug: string, name: string, ru: boolean, sole: SoleInfo | null): string {
-  switch (sectionKind(sectionSlug)) {
+  switch (sectionKind(sectionSlug, name)) {
     case 'turf':
       return ru
         ? `многошиповки (TF) ${sole?.forText ?? 'для искусственной травы и твёрдых покрытий'}`
