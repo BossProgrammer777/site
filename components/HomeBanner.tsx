@@ -21,8 +21,15 @@ export function HomeBanner() {
     image: SLIDE_META[idx]?.image ?? '/banners/1.jpg',
   }));
   const [i, setI] = useState(0);
-  const [broken, setBroken] = useState<Record<number, boolean>>({});
+  const [useJpg, setUseJpg] = useState<Record<number, boolean>>({}); // webp не завантажився → пробуємо .jpg
+  const [broken, setBroken] = useState<Record<number, boolean>>({}); // і jpg не вдався → лишаємо градієнт
   const n = SLIDES.length;
+
+  // webp впав → відкат на .jpg; jpg теж впав → броньований градієнт (не чорний екран).
+  const handleError = (idx: number) => {
+    if (!useJpg[idx]) setUseJpg((m) => ({ ...m, [idx]: true }));
+    else setBroken((b) => ({ ...b, [idx]: true }));
+  };
 
   useEffect(() => {
     const t = setInterval(() => setI((v) => (v + 1) % n), 5000);
@@ -38,19 +45,26 @@ export function HomeBanner() {
         style={{ transform: `translateX(-${i * 100}%)` }}
       >
         {SLIDES.map((s, idx) => (
-          <div key={idx} className="relative min-w-full bg-ink-900">
+          <div
+            key={idx}
+            className="relative min-w-full"
+            // База слайда — тёмный брендовый градиент (а не чистый чёрный),
+            // чтобы даже при медленной/неудачной загрузке фото не было «сломанного» экрана.
+            style={{ background: 'linear-gradient(135deg,#0a0d0b 0%,#0f1a12 60%,#123021 100%)' }}
+          >
             {!broken[idx] && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={s.image}
-                // Адаптивно: мобилке — лёгкая версия 800px, десктопу — 1200px.
-                srcSet={`${s.image.replace('.webp', '-800.webp')} 800w, ${s.image} 1200w`}
-                sizes="(max-width: 640px) 100vw, 1152px"
+                src={useJpg[idx] ? s.image.replace('.webp', '.jpg') : s.image}
+                // webp — с адаптивным srcSet; при откате на jpg отдаём один файл.
+                srcSet={useJpg[idx] ? undefined : `${s.image.replace('.webp', '-800.webp')} 800w, ${s.image} 1200w`}
+                sizes={useJpg[idx] ? undefined : '(max-width: 640px) 100vw, 1152px'}
                 alt=""
-                // Первый слайд — LCP-элемент: грузим сразу и с высоким приоритетом.
-                loading={idx === 0 ? 'eager' : 'lazy'}
+                // Все 3 слайда грузим сразу: в карусели на transform ленивая
+                // загрузка не срабатывает (слайд не «въезжает» во вьюпорт по скроллу).
+                loading="eager"
                 fetchPriority={idx === 0 ? 'high' : 'auto'}
-                onError={() => setBroken((b) => ({ ...b, [idx]: true }))}
+                onError={() => handleError(idx)}
                 className="absolute inset-0 h-full w-full object-cover"
               />
             )}
