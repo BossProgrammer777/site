@@ -10,6 +10,7 @@ export function CategorySeoContent({
   categorySlug,
   categoryH1,
   brands,
+  articles = [],
   locale,
 }: {
   content: CategorySeoRich;
@@ -17,6 +18,8 @@ export function CategorySeoContent({
   categoryH1: string;
   /** Только реально непустые бренды категории (для внутренней перелинковки). */
   brands: { slug: string; name: string }[];
+  /** Статьи блога по теме категории (категория → статья). */
+  articles?: { slug: string; title: string }[];
   locale: Locale;
 }) {
   const lh = (p: string) => localeHref(locale, p);
@@ -52,6 +55,21 @@ export function CategorySeoContent({
             </div>
           )}
         </div>
+
+        {articles.length > 0 && (
+          <div>
+            <h2 className={h2}>{locale === 'ru' ? 'Полезные статьи' : 'Корисні статті'}</h2>
+            <ul className="space-y-1.5">
+              {articles.map((a) => (
+                <li key={a.slug}>
+                  <Link href={lh(`/blog/${a.slug}`)} className="text-brand hover:underline">
+                    {a.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {content.faq.length > 0 && (
           <div>

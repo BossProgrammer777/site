@@ -6,14 +6,22 @@ import { SiteFooter } from '@/components/SiteFooter';
 import { CatalogBrowser } from '@/components/CatalogBrowser';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { categoryLandingSlugs } from '@/lib/seo';
+import { sectionLabel } from '@/lib/dictionaries';
 
 export const dynamic = 'force-dynamic';
 
 export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  const ru = params.lang === 'ru';
   return {
-    title: { absolute: 'Каталог футбольного взуття та екіпіровки | Bootsbaza' },
-    description:
-      'Каталог футбольного взуття та екіпіровки: бутси, сороконіжки, футзалки, дитяче взуття, гетри, щитки, м’ячі. Актуальні розміри й ціни, доставка по Україні.',
+    title: {
+      absolute: ru
+        ? 'Каталог футбольной обуви и экипировки | Bootsbaza'
+        : 'Каталог футбольного взуття та екіпіровки | Bootsbaza',
+    },
+    description: ru
+      ? 'Каталог футбольной обуви и экипировки: бутсы, сороконожки, футзалки, детская обувь, гетры, щитки, мячи. Актуальные размеры и цены, доставка по Украине.'
+      : 'Каталог футбольного взуття та екіпіровки: бутси, сороконіжки, футзалки, дитяче взуття, гетри, щитки, м’ячі. Актуальні розміри й ціни, доставка по Україні.',
+    // Фильтры (?brand=, ?size=, ?q= …) — варианты одной страницы: canonical на /catalog.
     alternates: altMeta(params.lang, '/catalog'),
   };
 }
@@ -44,7 +52,7 @@ export default async function CatalogPage({
   const landing = new Set(categoryLandingSlugs());
   const catLinks = catalog.sections
     .filter((s) => landing.has(s.slug) && s.products.length > 0)
-    .map((s) => ({ slug: s.slug, label: s.label }));
+    .map((s) => ({ slug: s.slug, label: sectionLabel(s.slug, s.label, params.lang) }));
 
   return (
     <>

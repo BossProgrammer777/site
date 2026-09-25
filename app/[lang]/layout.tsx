@@ -75,11 +75,11 @@ export default function RootLayout({
         <SourceTracker />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd(params.lang as Locale)) }}
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd()) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd(params.lang as Locale)) }}
         />
       </body>
     </html>

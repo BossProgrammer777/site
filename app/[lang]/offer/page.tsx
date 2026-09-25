@@ -4,11 +4,14 @@ import { PHONES, INSTAGRAM } from '@/lib/contacts';
 import { altMeta, Locale } from '@/lib/i18n';
 
 export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
-  const title =
-    params.lang === 'ru'
-      ? 'Договор публичной оферты — Bootsbaza'
-      : 'Договір публічної оферти — Bootsbaza';
-  return { title, alternates: altMeta(params.lang, '/offer') };
+  const ru = params.lang === 'ru';
+  return {
+    title: { absolute: ru ? 'Договор публичной оферты — Bootsbaza' : 'Договір публічної оферти — Bootsbaza' },
+    description: ru
+      ? 'Договор публичной оферты интернет-магазина Bootsbaza: условия заказа, оплаты, доставки и возврата товара.'
+      : 'Договір публічної оферти інтернет-магазину Bootsbaza: умови замовлення, оплати, доставки та повернення товару.',
+    alternates: altMeta(params.lang, '/offer'),
+  };
 }
 
 function Contacts() {

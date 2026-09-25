@@ -8,6 +8,8 @@ import { SITE_NAME, siteUrl } from './site';
 import { PHONES, SOCIALS } from './contacts';
 import { productImageSrc } from './img';
 import type { Locale } from './i18n';
+import { productSeoText, productSole } from './productSeoText';
+import { localizeProductName, localizeCountry } from './productL10n';
 
 type Loc = Record<Locale, string>;
 type LocArr = Record<Locale, string[]>;
@@ -238,6 +240,13 @@ const CATEGORY_RICH: Record<string, CategoryRich> = {
         },
       },
       {
+        q: { uk: 'Що означають позначки FG, AG, SG, TF та IC?', ru: 'Что означают обозначения FG, AG, SG, TF и IC?' },
+        a: {
+          uk: 'Це тип підошви під покриття: FG — натуральний газон, AG — штучна трава, SG — м’який вологий газон, TF — сороконіжки для штучки й твердих майданчиків, IC — футзалки для залу.',
+          ru: 'Это тип подошвы под покрытие: FG — натуральный газон, AG — искусственная трава, SG — мягкий влажный газон, TF — сороконожки для искусственного покрытия и твёрдых площадок, IC — футзалки для зала.',
+        },
+      },
+      {
         q: { uk: 'Який розмір бутс вибрати?', ru: 'Какой размер бутс выбрать?' },
         a: {
           uk: 'Орієнтуйтеся на довжину устілки та розмірну сітку в картці. Бутси беруть «впритул», без великого запасу — так нога краще відчуває м’яч.',
@@ -298,6 +307,13 @@ const CATEGORY_RICH: Record<string, CategoryRich> = {
         a: {
           uk: 'Ідеально — штучна трава, гумові та жорсткі ґрунтові майданчики. На натуральному газоні вони тримають гірше, а на гладкому паркеті краще взяти футзалки.',
           ru: 'Идеально — искусственная трава, резиновые и жёсткие грунтовые площадки. На натуральном газоне они держат хуже, а на гладком паркете лучше взять футзалки.',
+        },
+      },
+      {
+        q: { uk: 'Чим сороконіжки відрізняються від футзалок?', ru: 'Чем сороконожки отличаются от футзалок?' },
+        a: {
+          uk: 'Сороконіжки (TF) мають багато дрібних гумових шипів для штучної трави й твердих майданчиків, а футзалки (IC) — рівну гумову підошву без шипів для залу та паркету.',
+          ru: 'У сороконожек (TF) много мелких резиновых шипов для искусственной травы и твёрдых площадок, а у футзалок (IC) — ровная резиновая подошва без шипов для зала и паркета.',
         },
       },
       {
@@ -475,18 +491,36 @@ export function categorySeoRich(slug: string, locale: Locale): CategorySeoRich |
 }
 
 // ---------------- JSON-LD ---------------------------------------------------
-export function organizationJsonLd() {
+// Стабильные @id сущностей: Product/Article/WebSite ссылаются на одну и ту же
+// Organization — Google склеивает их в единый граф знаний о магазине.
+export const orgId = () => `${siteUrl()}/#organization`;
+export const websiteId = () => `${siteUrl()}/#website`;
+
+const ORG_DESCRIPTION: Loc = {
+  uk: 'Bootsbaza — український інтернет-магазин футбольного взуття та екіпіровки з 2018 року: бутси, сороконіжки, футзалки, дитяче футбольне взуття Nike, Adidas, Puma та бюджетні моделі. Доставка Новою Поштою по всій Україні. Має власну аматорську команду, що виступає на турнірах Харкова.',
+  ru: 'Bootsbaza — украинский интернет-магазин футбольной обуви и экипировки с 2018 года: бутсы, сороконожки, футзалки, детская футбольная обувь Nike, Adidas, Puma и бюджетные модели. Доставка Новой Почтой по всей Украине. Есть собственная любительская команда, выступающая на турнирах Харькова.',
+};
+// Темы, в которых магазин реально компетентен (то, чем он торгует и о чём пишет).
+const KNOWS_ABOUT: LocArr = {
+  uk: ['футбольні бутси', 'сороконіжки (TF)', 'футзалки (IC)', 'дитяче футбольне взуття', 'футбольна екіпіровка', 'типи підошв FG, AG, SG, TF, IC', 'розмірна сітка футбольного взуття', 'Nike', 'Adidas', 'Puma'],
+  ru: ['футбольные бутсы', 'сороконожки (TF)', 'футзалки (IC)', 'детская футбольная обувь', 'футбольная экипировка', 'типы подошв FG, AG, SG, TF, IC', 'размерная сетка футбольной обуви', 'Nike', 'Adidas', 'Puma'],
+};
+
+export function organizationJsonLd(locale: Locale = 'uk') {
   const base = siteUrl();
   return {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    '@type': 'OnlineStore', // подтип Organization (рекомендация Google для интернет-магазинов)
+    '@id': orgId(),
     name: SITE_NAME,
+    alternateName: 'BootsBaza',
     url: base,
-    logo: `${base}/logo.svg`,
+    logo: { '@type': 'ImageObject', url: `${base}/logo.svg` },
+    image: `${base}/og.png`,
     foundingDate: '2018',
-    description:
-      'Інтернет-магазин футбольного взуття та екіпіровки з 2018 року. Маємо власну аматорську команду, що виступає на турнірах Харкова.',
-    areaServed: 'UA',
+    description: ORG_DESCRIPTION[locale],
+    knowsAbout: KNOWS_ABOUT[locale],
+    areaServed: { '@type': 'Country', name: 'Ukraine' },
     contactPoint: PHONES.map((p) => ({
       '@type': 'ContactPoint',
       telephone: p.href.replace('tel:', ''),
@@ -498,19 +532,38 @@ export function organizationJsonLd() {
   };
 }
 
-export function websiteJsonLd() {
+export function websiteJsonLd(locale: Locale = 'uk') {
   const base = siteUrl();
+  const prefix = locale === 'ru' ? '/ru' : '';
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
+    '@id': websiteId(),
     name: SITE_NAME,
-    url: base,
-    inLanguage: 'uk',
+    url: `${base}${prefix || '/'}`,
+    inLanguage: locale === 'ru' ? 'ru-UA' : 'uk-UA',
+    publisher: { '@id': orgId() },
     potentialAction: {
       '@type': 'SearchAction',
-      target: `${base}/catalog?q={search_term_string}`,
+      target: `${base}${prefix}/catalog?q={search_term_string}`,
       'query-input': 'required name=search_term_string',
     },
+  };
+}
+
+/** Список товаров категории (summary-разметка: позиция + URL + название). */
+export function itemListJsonLd(name: string, items: { name: string; url: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    numberOfItems: items.length,
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: it.url,
+      name: it.name,
+    })),
   };
 }
 
@@ -527,22 +580,29 @@ export function breadcrumbJsonLd(items: { name: string; url: string }[]) {
   };
 }
 
-export function productJsonLd(p: Product, url: string, brand: string | null) {
+export function productJsonLd(
+  p: Product,
+  url: string,
+  brand: string | null,
+  opts: { locale: Locale; sectionSlug: string },
+) {
   const base = siteUrl();
+  const { locale, sectionSlug } = opts;
   // Абсолютный URL картинки: productImageSrc даёт /photos/… либо /api/img?src=…
+  // (/api/img открыт в robots.txt, иначе Google не видит фото).
   const image = `${base}${productImageSrc(p.image)}`;
 
-  // Описание для schema (совпадает с фактическим смыслом карточки).
-  const inStockSizes = p.sizes.filter((s) => s.inStock).map((s) => s.label).join(', ');
-  const description = [
-    p.name + '.',
-    brand ? `Бренд: ${brand}.` : '',
-    inStockSizes ? `Розміри в наявності: ${inStockSizes}.` : '',
-    `Ціна ${p.finalPrice} грн.`,
-    'Доставка Новою Поштою по всій Україні, можлива оплата при отриманні.',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  // Описание и характеристики — ТЕ ЖЕ, что видны на странице (блок «Опис товару»),
+  // и на языке страницы: схема не расходится с контентом.
+  const seo = productSeoText(p, sectionSlug, locale);
+  const sole = productSole(p, sectionSlug, locale);
+  const additionalProperty = sole
+    ? [
+        { '@type': 'PropertyValue', name: locale === 'ru' ? 'Подошва' : 'Підошва', value: `${sole.code} (${sole.full})` },
+        { '@type': 'PropertyValue', name: locale === 'ru' ? 'Покрытие' : 'Покриття', value: sole.surface },
+      ]
+    : undefined;
+  const typeRow = seo.specs.find((s) => s.label === 'Тип');
 
   // Цена действительна ~1 год (Google рекомендует priceValidUntil).
   const valid = new Date();
@@ -576,13 +636,17 @@ export function productJsonLd(p: Product, url: string, brand: string | null) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: p.name,
-    description,
+    '@id': `${url}#product`,
+    name: localizeProductName(p.name, locale),
+    description: seo.paragraph,
+    url,
     image: [image],
+    // sku — артикул магазина. mpn НЕ указываем: это код производителя, которого у нас нет.
     sku: p.code || p.id,
-    mpn: p.code || p.id,
+    ...(typeRow ? { category: typeRow.value } : {}),
     ...(brand ? { brand: { '@type': 'Brand', name: brand } } : {}),
-    ...(p.country ? { countryOfOrigin: p.country } : {}),
+    ...(p.country ? { countryOfOrigin: localizeCountry(p.country, locale) } : {}),
+    ...(additionalProperty ? { additionalProperty } : {}),
     offers: {
       '@type': 'Offer',
       url,
@@ -594,7 +658,7 @@ export function productJsonLd(p: Product, url: string, brand: string | null) {
       availability: p.anyInStock
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
-      seller: { '@type': 'Organization', name: SITE_NAME },
+      seller: { '@type': 'Organization', '@id': orgId(), name: SITE_NAME },
       shippingDetails,
       hasMerchantReturnPolicy: returnPolicy,
     },
@@ -605,25 +669,27 @@ export function articleJsonLd(a: {
   title: string;
   description: string;
   date: string;
+  updated?: string;
   url: string;
+  locale: Locale;
+  about?: string[];
 }) {
   const base = siteUrl();
   return {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
+    '@id': `${a.url}#article`,
     headline: a.title,
     description: a.description,
     datePublished: a.date,
-    dateModified: a.date,
-    inLanguage: 'uk',
-    mainEntityOfPage: a.url,
-    image: [`${base}/logo.svg`],
-    author: { '@type': 'Organization', name: SITE_NAME, url: base },
-    publisher: {
-      '@type': 'Organization',
-      name: SITE_NAME,
-      logo: { '@type': 'ImageObject', url: `${base}/logo.svg` },
-    },
+    dateModified: a.updated || a.date,
+    inLanguage: a.locale === 'ru' ? 'ru-UA' : 'uk-UA',
+    mainEntityOfPage: { '@type': 'WebPage', '@id': a.url },
+    image: [`${base}/og.png`], // 1200×630 — подходит для Article
+    ...(a.about && a.about.length ? { about: a.about.map((name) => ({ '@type': 'Thing', name })) } : {}),
+    isPartOf: { '@id': websiteId() },
+    author: { '@type': 'Organization', '@id': orgId(), name: SITE_NAME, url: base },
+    publisher: { '@id': orgId() },
   };
 }
 

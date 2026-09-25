@@ -9,14 +9,15 @@ import { ProductDetail } from '@/components/ProductDetail';
 import { ProductSeoContent } from '@/components/ProductSeoContent';
 import { SimilarProducts } from '@/components/SimilarProducts';
 import { SelectedSizeProvider } from '@/components/SelectedSizeContext';
-import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
 import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
 import { detectBrand } from '@/lib/brand';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
-import { dict } from '@/lib/dictionaries';
+import { dict, sectionLabel as localSectionLabel } from '@/lib/dictionaries';
 import { localizeProductName } from '@/lib/productL10n';
 import { productKeywords } from '@/lib/productKeywords';
+import { productTitle, productMetaDescription } from '@/lib/productSeoText';
+import { productImageSrc } from '@/lib/img';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,11 +83,11 @@ export async function generateMetadata({
   const { hit, available } = located;
   const { product, sectionSlug } = hit;
 
-  const name = localizeProductName(product.name, params.lang);
-  const description =
-    params.lang === 'ru'
-      ? `${name} — ${formatUAH(product.finalPrice)}. Размеры в наличии, размерная сетка, доставка Новой Почтой.`
-      : `${name} — ${formatUAH(product.finalPrice)}. Розміри в наявності, розмірна сітка, доставка Новою Поштою.`;
+  // Title: тип + бренд + модель + маркировка подошвы (тип добавляется, если его нет в названии).
+  const name = productTitle(product, sectionSlug, params.lang);
+  const description = productMetaDescription(product, sectionSlug, params.lang);
+  // OG-картинка — тем же путём, что и на странице (через /api/img для внешних фото).
+  const ogImage = product.image ? productImageSrc(product.image) : '/og.png';
   return {
     title: name,
     description,
@@ -98,7 +99,7 @@ export async function generateMetadata({
       title: name,
       description,
       type: 'website',
-      images: [product.image || '/logo.svg'],
+      images: [ogImage],
     },
     twitter: { card: 'summary_large_image', title: name, description },
   };
@@ -115,7 +116,10 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
   const { hit, available } = located;
 
   const base = siteUrl();
-  const { product, sectionLabel, sectionSlug } = hit;
+  const { product, sectionSlug } = hit;
+  // Название раздела на языке страницы (а не сырое из прайса — оно всегда UA).
+  const sectionLabel = localSectionLabel(sectionSlug, hit.sectionLabel, lang);
+  const displayName = localizeProductName(product.name, lang);
   const catSeo = getCategorySeo(sectionSlug);
   const catHref = catSeo ? `/catalog/${sectionSlug}` : '/catalog';
   const productUrl = `${base}${lh(`/product/${encodeURIComponent(product.slug)}`)}`;
@@ -146,7 +150,7 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
     { name: bc.home, url: `${base}${lh('/')}` },
     { name: bc.catalog, url: `${base}${lh('/catalog')}` },
     { name: sectionLabel, url: `${base}${lh(catHref)}` },
-    { name: product.name, url: productUrl },
+    { name: displayName, url: productUrl },
   ]);
 
   return (
@@ -188,7 +192,9 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
       {available && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdScript(productJsonLd(product, productUrl, brand)) }}
+          dangerouslySetInnerHTML={{
+            __html: jsonLdScript(productJsonLd(product, productUrl, brand, { locale: lang, sectionSlug })),
+          }}
         />
       )}
       <script

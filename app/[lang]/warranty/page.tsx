@@ -3,9 +3,14 @@ import { InfoPage } from '@/components/InfoPage';
 import { altMeta, Locale } from '@/lib/i18n';
 
 export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
-  const title =
-    params.lang === 'ru' ? 'Гарантия и возврат — Bootsbaza' : 'Гарантія та повернення — Bootsbaza';
-  return { title, alternates: altMeta(params.lang, '/warranty') };
+  const ru = params.lang === 'ru';
+  return {
+    title: { absolute: ru ? 'Гарантия и возврат — Bootsbaza' : 'Гарантія та повернення — Bootsbaza' },
+    description: ru
+      ? 'Возврат и обмен в течение 14 дней с момента получения: если не подошёл размер или модель. Как оформить возврат в Bootsbaza.'
+      : 'Повернення та обмін протягом 14 днів з моменту отримання: якщо не підійшов розмір чи модель. Як оформити повернення в Bootsbaza.',
+    alternates: altMeta(params.lang, '/warranty'),
+  };
 }
 
 export default function WarrantyPage({ params }: { params: { lang: Locale } }) {

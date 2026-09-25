@@ -1,8 +1,11 @@
+import Link from 'next/link';
 import type { Product } from '@/lib/types';
-import type { Locale } from '@/lib/i18n';
+import { localeHref, type Locale } from '@/lib/i18n';
 import { productSeoText } from '@/lib/productSeoText';
+import { articlesForSection } from '@/lib/blog';
 
-// Уникальный SEO-блок под карточкой товара: описание + характеристики.
+// Уникальный SEO-блок под карточкой товара: описание + характеристики
+// (тип, подошва/покрытие, условия доставки и возврата) + полезные статьи.
 // Server component — весь текст попадает прямо в SSR-HTML (важно для индексации
 // и чтобы Google не считал соседние карточки дублями).
 export function ProductSeoContent({
@@ -15,6 +18,7 @@ export function ProductSeoContent({
   locale: Locale;
 }) {
   const seo = productSeoText(product, sectionSlug, locale);
+  const articles = articlesForSection(sectionSlug, locale);
 
   return (
     <section className="mt-12 border-t border-ink-800 pt-8">
@@ -36,6 +40,23 @@ export function ProductSeoContent({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {articles.length > 0 && (
+          <div className="mt-6">
+            <h3 className="mb-2 text-sm font-bold [color:#c3d3c8]">
+              {locale === 'ru' ? 'Полезно перед покупкой' : 'Корисно перед покупкою'}
+            </h3>
+            <ul className="space-y-1.5 text-sm">
+              {articles.map((a) => (
+                <li key={a.slug}>
+                  <Link href={localeHref(locale, `/blog/${a.slug}`)} className="text-brand hover:underline">
+                    {a.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

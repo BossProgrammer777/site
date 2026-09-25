@@ -12,12 +12,19 @@ import {
   categorySeoRich,
   breadcrumbJsonLd,
   faqJsonLd,
+  itemListJsonLd,
   jsonLdScript,
 } from '@/lib/seo';
 import { siteUrl } from '@/lib/site';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { BRAND_LANDINGS, detectBrand } from '@/lib/brand';
 import { dict } from '@/lib/dictionaries';
+import { articlesForSection } from '@/lib/blog';
+import { localizeProductName } from '@/lib/productL10n';
+
+// Сколько товаров отдаём в ItemList (все они есть на странице — первые сразу,
+// остальные по «Показати ще»; больше не нужно, чтобы не раздувать HTML).
+const ITEMLIST_MAX = 50;
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +74,19 @@ export default async function CategoryPage({ params }: { params: { lang: Locale;
         ),
       )
     : [];
+  const articles = articlesForSection(seo.slug, params.lang);
+
+  // ItemList: какие товары входят в категорию (URL + название на языке страницы).
+  const itemList =
+    section && section.products.length > 0
+      ? itemListJsonLd(
+          seo.h1,
+          section.products.slice(0, ITEMLIST_MAX).map((p) => ({
+            name: localizeProductName(p.name, params.lang),
+            url: `${base}${lh(`/product/${encodeURIComponent(p.slug)}`)}`,
+          })),
+        )
+      : null;
 
   return (
     <>
@@ -95,6 +115,7 @@ export default async function CategoryPage({ params }: { params: { lang: Locale;
             categorySlug={seo.slug}
             categoryH1={seo.h1}
             brands={availBrands}
+            articles={articles}
             locale={params.lang}
           />
         )}
@@ -104,6 +125,12 @@ export default async function CategoryPage({ params }: { params: { lang: Locale;
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(crumbs) }}
       />
+      {itemList && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(itemList) }}
+        />
+      )}
       {rich && rich.faq.length > 0 && (
         <script
           type="application/ld+json"

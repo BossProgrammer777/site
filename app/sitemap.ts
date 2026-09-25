@@ -13,9 +13,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Разворачивает «чистый» путь в записи для обеих локалей + hreflang-alternates.
   // Служебные страницы (корзина/чекаут/избранное) в карту не попадают.
+  // lastModified передаём только там, где он правдив: у статей — дата обновления,
+  // у товаров/категорий — «сейчас» (наличие и цены меняются ежедневно). Для
+  // статических страниц не указываем: вечное «сейчас» Google учится игнорировать.
   const entry = (
     path: string,
-    lastModified: Date,
+    lastModified?: Date,
     changeFrequency?: 'daily' | 'weekly' | 'monthly',
   ): MetadataRoute.Sitemap => {
     const clean = path === '/' ? '' : path;
@@ -32,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Статические (индексируемые) страницы.
   for (const p of ['', '/about', '/catalog', '/reviews', '/blog', '/delivery', '/warranty', '/offer', '/contacts']) {
-    out.push(...entry(p, now));
+    out.push(...entry(p));
   }
 
   // Посадочные категории.
@@ -42,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Статьи блога.
   for (const a of BLOG) {
-    out.push(...entry(`/blog/${a.slug}`, new Date(a.date), 'monthly'));
+    out.push(...entry(`/blog/${a.slug}`, new Date(a.updated || a.date), 'monthly'));
   }
 
   try {

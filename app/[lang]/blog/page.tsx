@@ -7,10 +7,16 @@ import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { dict } from '@/lib/dictionaries';
 
 export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
+  const ru = params.lang === 'ru';
   return {
-    title: { absolute: 'Блог про футбольне взуття та екіпіровку | Bootsbaza' },
-    description:
-      'Корисні статті про вибір футбольного взуття: як обрати бутси дитині, різниця між бутсами, сороконіжками й футзалками, розмірна сітка та поради.',
+    title: {
+      absolute: ru
+        ? 'Блог о футбольной обуви и экипировке | Bootsbaza'
+        : 'Блог про футбольне взуття та екіпіровку | Bootsbaza',
+    },
+    description: ru
+      ? 'Полезные статьи о выборе футбольной обуви: как выбрать бутсы ребёнку, разница между бутсами, сороконожками и футзалками, размерная сетка и советы.'
+      : 'Корисні статті про вибір футбольного взуття: як обрати бутси дитині, різниця між бутсами, сороконіжками й футзалками, розмірна сітка та поради.',
     alternates: altMeta(params.lang, '/blog'),
   };
 }

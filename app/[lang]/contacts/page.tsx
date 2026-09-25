@@ -5,8 +5,15 @@ import { PHONES, SOCIALS } from '@/lib/contacts';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 
 export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
-  const title = params.lang === 'ru' ? 'Контакты — Bootsbaza' : 'Контакти — Bootsbaza';
-  return { title, alternates: altMeta(params.lang, '/contacts') };
+  // absolute: иначе шаблон layout добавит «— Bootsbaza» второй раз.
+  const ru = params.lang === 'ru';
+  return {
+    title: { absolute: ru ? 'Контакты — Bootsbaza' : 'Контакти — Bootsbaza' },
+    description: ru
+      ? 'Контакты Bootsbaza: телефоны, Instagram и Telegram. Поможем подобрать бутсы, сороконожки или футзалки и размер. Доставка по всей Украине.'
+      : 'Контакти Bootsbaza: телефони, Instagram і Telegram. Допоможемо підібрати бутси, сороконіжки чи футзалки та розмір. Доставка по всій Україні.',
+    alternates: altMeta(params.lang, '/contacts'),
+  };
 }
 
 const C = {

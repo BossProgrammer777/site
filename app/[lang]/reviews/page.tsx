@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export function generateMetadata({ params }: { params: { lang: Locale } }): Metadata {
   const ru = params.lang === 'ru';
-  const title = ru ? 'Отзывы клиентов — Bootsbaza' : 'Відгуки клієнтів — Bootsbaza';
+  const title = { absolute: ru ? 'Отзывы клиентов — Bootsbaza' : 'Відгуки клієнтів — Bootsbaza' };
   const description = ru
     ? 'Реальные отзывы наших клиентов из Instagram Direct: скриншоты и видео. Доставка Новой Почтой, оплата при получении.'
     : 'Реальні відгуки наших клієнтів з Instagram Direct: скріншоти та відео. Доставка Новою Поштою, оплата при отриманні.';
