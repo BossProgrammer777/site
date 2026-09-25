@@ -609,10 +609,10 @@ export function productJsonLd(
   const priceValidUntil = valid.toISOString().slice(0, 10);
   const validFrom = new Date().toISOString().slice(0, 10); // цена действительна с сегодня
 
-  // Доставка Новой Почтой по Украине (оплата по тарифам НП, ориентир ~70 грн).
+  // Доставка Новой Почтой по Украине (оплата по тарифам НП, ориентир ~120 грн за пару обуви).
   const shippingDetails = {
     '@type': 'OfferShippingDetails',
-    shippingRate: { '@type': 'MonetaryAmount', value: 70, currency: 'UAH' },
+    shippingRate: { '@type': 'MonetaryAmount', value: 120, currency: 'UAH' },
     shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'UA' },
     deliveryTime: {
       '@type': 'ShippingDeliveryTime',
@@ -621,15 +621,18 @@ export function productJsonLd(
     },
   };
 
-  // Возврат 14 дней по Украине; обратную пересылку оплачивает покупатель.
+  // Возврат 14 дней по Украине.
   const returnPolicy = {
     '@type': 'MerchantReturnPolicy',
     applicableCountry: 'UA',
     returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
     merchantReturnDays: 14,
     returnMethod: 'https://schema.org/ReturnByMail',
+    // Как на странице «Гарантія»: не подошёл размер/модель — обратную доставку платит
+    // покупатель; производственный дефект — платит магазин.
     returnFees: 'https://schema.org/ReturnShippingFees',
-    returnShippingFeesAmount: { '@type': 'MonetaryAmount', value: 70, currency: 'UAH' },
+    returnShippingFeesAmount: { '@type': 'MonetaryAmount', value: 120, currency: 'UAH' },
+    itemDefectReturnFees: 'https://schema.org/FreeReturn',
   };
 
   return {
