@@ -602,7 +602,6 @@ export function productJsonLd(
         { '@type': 'PropertyValue', name: locale === 'ru' ? 'Покрытие' : 'Покриття', value: sole.surface },
       ]
     : undefined;
-  const typeRow = seo.specs.find((s) => s.label === 'Тип');
 
   // Цена действительна ~1 год (Google рекомендует priceValidUntil).
   const valid = new Date();
@@ -643,7 +642,6 @@ export function productJsonLd(
     image: [image],
     // sku — артикул магазина. mpn НЕ указываем: это код производителя, которого у нас нет.
     sku: p.code || p.id,
-    ...(typeRow ? { category: typeRow.value } : {}),
     ...(brand ? { brand: { '@type': 'Brand', name: brand } } : {}),
     ...(p.country ? { countryOfOrigin: localizeCountry(p.country, locale) } : {}),
     ...(additionalProperty ? { additionalProperty } : {}),
