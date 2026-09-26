@@ -11,15 +11,22 @@ export function extractFolderId(url: string | null): string | null {
 export interface FolderMedia {
   imageIds: string[];
   videoIds: string[];
+  /** false — Drive API ответил ошибкой: пустой список НЕ означает «в папке пусто». */
+  ok: boolean;
 }
 
 const cache = new Map<string, { at: number; media: FolderMedia }>();
 const TTL = 30 * 60 * 1000; // 30 мин
 
 export async function listFolderMedia(folderId: string): Promise<FolderMedia> {
-  const empty: FolderMedia = { imageIds: [], videoIds: [] };
+  const empty: FolderMedia = { imageIds: [], videoIds: [], ok: true };
+  const failed: FolderMedia = { imageIds: [], videoIds: [], ok: false };
   const key = process.env.GOOGLE_API_KEY || process.env.GOOGLE_SHEETS_API_KEY;
-  if (!key || !folderId) return empty;
+  if (!folderId) return empty;
+  if (!key) {
+    console.error('[drive] нет GOOGLE_API_KEY — галерея пустая');
+    return failed;
+  }
 
   const cached = cache.get(folderId);
   if (cached && Date.now() - cached.at < TTL) return cached.media;
@@ -32,18 +39,23 @@ export async function listFolderMedia(folderId: string): Promise<FolderMedia> {
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
-      cache.set(folderId, { at: Date.now(), media: empty });
-      return empty;
+      // Ошибку НЕ кэшируем: иначе один сбой/лимит Drive на 30 мин (а через CDN —
+      // до суток) оставлял карточки без живых фото. Причину пишем в логи Vercel.
+      const body = await res.text().catch(() => '');
+      console.error(`[drive] files.list ${res.status} folder=${folderId}: ${body.slice(0, 300)}`);
+      return failed;
     }
     const data = await res.json();
     const files: { id: string; mimeType: string }[] = data.files || [];
     const media: FolderMedia = {
       imageIds: files.filter((f) => f.mimeType?.startsWith('image/')).map((f) => f.id),
       videoIds: files.filter((f) => f.mimeType?.startsWith('video/')).map((f) => f.id),
+      ok: true,
     };
     cache.set(folderId, { at: Date.now(), media });
     return media;
-  } catch {
-    return empty;
+  } catch (e) {
+    console.error(`[drive] files.list сеть folder=${folderId}: ${(e as Error).message}`);
+    return failed;
   }
 }

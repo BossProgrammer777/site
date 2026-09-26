@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Отдаёт отзывы клиентов из Drive-папки: скрины (images) и видео (videos).
 // Фото проксируем через /api/img; видео — thumbnail + embed-ссылка для плеера.
 export async function GET() {
-  const { imageIds, videoIds } = await listFolderMedia(REVIEWS_FOLDER_ID);
+  const { imageIds, videoIds, ok } = await listFolderMedia(REVIEWS_FOLDER_ID);
 
   const images = imageIds.map(
     (id) => `/api/img?src=${encodeURIComponent(`https://lh3.googleusercontent.com/d/${id}=w1000`)}`,
@@ -19,6 +19,7 @@ export async function GET() {
 
   return NextResponse.json(
     { images, videos },
-    { headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400' } },
+    // Ошибку Drive не кэшируем на CDN — следующий запрос попробует снова.
+    { headers: { 'Cache-Control': ok ? 'public, s-maxage=1800, stale-while-revalidate=86400' : 'no-store' } },
   );
 }
