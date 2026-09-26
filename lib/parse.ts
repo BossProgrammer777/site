@@ -405,11 +405,14 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
 
     const anyInStock = sizes.length ? sizes.some((s) => s.inStock) : true;
 
-    // Ссылка на доп. фото/видео (гиперссылка в ячейке «Медіа»).
+    // Ссылка на доп. фото/видео: сначала ячейка «Медіа»; если колонку по заголовку
+    // не нашли (в части листов заголовок другой/сдвинут) или в ней пусто — берём
+    // ссылку на папку Google Drive из любой ячейки строки (как scripts/extract-images).
     const mediaCell = cellAt(row, cols.media);
-    const mediaUrl = mediaCell.hyperlink && /^https?:\/\//.test(mediaCell.hyperlink)
+    const isHttp = (u: string | null): u is string => !!u && /^https?:\/\//.test(u);
+    const mediaUrl = isHttp(mediaCell.hyperlink)
       ? mediaCell.hyperlink
-      : null;
+      : (row.map((c) => c?.hyperlink ?? null).find((u) => isHttp(u) && /drive\.google\.com\/.*folders\//.test(u)) ?? null);
 
     counter += 1;
     const displayName = nameCell.text || `Модель ${codeCell.text}`;
