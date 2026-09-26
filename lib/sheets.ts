@@ -34,20 +34,32 @@ async function fetchGrids(): Promise<Map<string, Cell[][]>> {
     throw new Error('Нет учётных данных Google (GOOGLE_API_KEY или сервис-аккаунт).');
   }
 
-  const params = new URLSearchParams();
-  params.set('includeGridData', 'true');
-  params.set(
-    'fields',
-    'sheets(properties(title),data(rowData(values(userEnteredValue,effectiveValue,formattedValue,hyperlink))))',
-  );
-  for (const s of SHEETS) params.append('ranges', s.title);
-  if (apiKey) params.set('key', apiKey);
+  const request = (fields: string) => {
+    const params = new URLSearchParams();
+    params.set('includeGridData', 'true');
+    params.set('fields', fields);
+    for (const s of SHEETS) params.append('ranges', s.title);
+    if (apiKey) params.set('key', apiKey);
+    return fetch(`${SHEETS_ENDPOINT}/${SPREADSHEET_ID}?${params.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      // На стороне Next кэшируем сами (см. lib/cache.ts), поэтому здесь без кэша.
+      cache: 'no-store',
+    });
+  };
 
-  const res = await fetch(`${SHEETS_ENDPOINT}/${SPREADSHEET_ID}?${params.toString()}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    // На стороне Next кэшируем сами (см. lib/cache.ts), поэтому здесь без кэша.
-    cache: 'no-store',
-  });
+  // hyperlink заполняется, только если ссылка покрывает ВЕСЬ текст ячейки; иначе
+  // (ссылка на часть текста, лишний пробел/перенос) она лежит в textFormatRuns —
+  // запрашиваем и её. Если API отклонит расширенный набор полей (400) —
+  // повторяем со старым, чтобы каталог не сломался.
+  let res = await request(
+    'sheets(properties(title),data(rowData(values(userEnteredValue,effectiveValue,formattedValue,hyperlink,textFormatRuns(format(link(uri))),userEnteredFormat(textFormat(link(uri)))))))',
+  );
+  if (res.status === 400) {
+    console.error('[sheets] расширенные поля отклонены, повтор со стандартными:', (await res.text()).slice(0, 200));
+    res = await request(
+      'sheets(properties(title),data(rowData(values(userEnteredValue,effectiveValue,formattedValue,hyperlink))))',
+    );
+  }
   if (!res.ok) {
     throw new Error(`Sheets API ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }

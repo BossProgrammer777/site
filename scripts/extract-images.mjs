@@ -197,16 +197,32 @@ function folderIdFromCells(cells) {
       const m = f.match(folderRe);
       if (m) return m[1];
     }
+    // ссылка на часть текста / в формате ячейки (hyperlink в таком случае пуст)
+    const uris = [
+      ...(c.textFormatRuns || []).map((r) => r.format?.link?.uri),
+      c.userEnteredFormat?.textFormat?.link?.uri,
+    ];
+    for (const u of uris) {
+      const m = u && u.match(folderRe);
+      if (m) return m[1];
+    }
   }
   return null;
 }
 async function fetchAllSheets() {
-  const params = new URLSearchParams();
-  params.set('includeGridData', 'true');
-  params.set('fields', 'sheets(properties(title),data(rowData(values(hyperlink,userEnteredValue))))');
-  for (const s of SHEETS) params.append('ranges', s.title);
-  params.set('key', KEY);
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?${params}`);
+  const request = (fields) => {
+    const params = new URLSearchParams();
+    params.set('includeGridData', 'true');
+    params.set('fields', fields);
+    for (const s of SHEETS) params.append('ranges', s.title);
+    params.set('key', KEY);
+    return fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?${params}`);
+  };
+  // Ссылки «на часть текста» лежат в textFormatRuns; при отказе API (400) — старый набор полей.
+  let res = await request(
+    'sheets(properties(title),data(rowData(values(hyperlink,userEnteredValue,textFormatRuns(format(link(uri))),userEnteredFormat(textFormat(link(uri)))))))',
+  );
+  if (res.status === 400) res = await request('sheets(properties(title),data(rowData(values(hyperlink,userEnteredValue))))');
   if (!res.ok) throw new Error(`Sheets API ${res.status}`);
   return (await res.json()).sheets || [];
 }

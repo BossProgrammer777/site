@@ -38,12 +38,27 @@ interface RawCell {
   effectiveValue?: { stringValue?: string; numberValue?: number };
   formattedValue?: string;
   hyperlink?: string;
+  textFormatRuns?: { format?: { link?: { uri?: string } } }[];
+  userEnteredFormat?: { textFormat?: { link?: { uri?: string } } };
 }
 interface RawRow {
   values?: RawCell[];
 }
 
 const IMAGE_FORMULA = /=\s*IMAGE\(\s*"([^"]+)"/i;
+const HYPERLINK_FORMULA = /=\s*HYPERLINK\(\s*"([^"]+)"/i;
+
+// Ссылка ячейки из любого места, где её хранит Google Sheets: поле hyperlink
+// (ссылка на весь текст), формула HYPERLINK(), ссылка на часть текста
+// (textFormatRuns) или ссылка в формате ячейки.
+function cellLink(raw: RawCell): string | null {
+  if (raw.hyperlink) return raw.hyperlink;
+  const f = raw.userEnteredValue?.formulaValue?.match(HYPERLINK_FORMULA);
+  if (f) return f[1];
+  const run = raw.textFormatRuns?.find((r) => r.format?.link?.uri);
+  if (run?.format?.link?.uri) return run.format.link.uri;
+  return raw.userEnteredFormat?.textFormat?.link?.uri ?? null;
+}
 
 export function normalizeCell(raw: RawCell | undefined): Cell {
   if (!raw) return { text: '', imageUrl: null, num: null, hyperlink: null };
@@ -73,7 +88,7 @@ export function normalizeCell(raw: RawCell | undefined): Cell {
     text: (text || '').trim(),
     imageUrl,
     num,
-    hyperlink: raw.hyperlink ?? null,
+    hyperlink: cellLink(raw),
   };
 }
 
