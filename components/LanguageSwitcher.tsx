@@ -7,7 +7,11 @@ import { useLocale } from './LocaleProvider';
 // Переключатель UA/RU: сохраняет текущий путь, меняет только префикс локали.
 export function LanguageSwitcher({ className = '' }: { className?: string }) {
   const locale = useLocale();
-  const pathname = usePathname() || '/';
+  const raw = usePathname() || '/';
+  // При серверном рендере UA-страниц usePathname отдаёт внутренний путь после
+  // rewrite в middleware (/uk/...), поэтому снимаем и его, иначе в HTML
+  // попадают несуществующие ссылки /uk/... и /ru/uk/... (404 для роботов).
+  const pathname = raw === '/uk' ? '/' : raw.startsWith('/uk/') ? raw.slice(3) : raw;
   // «Чистый» путь без префикса ru.
   const clean = pathname === '/ru' ? '/' : pathname.startsWith('/ru/') ? pathname.slice(3) : pathname;
   const ukHref = clean || '/';
