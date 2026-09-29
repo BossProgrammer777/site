@@ -13,6 +13,40 @@ import { fetchLiveCatalog } from './sheets';
 import { getDemoCatalog } from './demoData';
 import { fetchCrmProducts } from './crmFeed';
 import { Catalog } from './types';
+import { indexNowSubmit, bothLocales } from './indexnow';
+
+// Сообщаем Bing (IndexNow) о товарах, которые появились, исчезли или сменили
+// наличие с прошлого обновления прайса. Только live→live (не демо, не первый
+// запуск инстанса). Защита: если «пропала» заметная часть каталога или изменений
+// слишком много — это скорее сбой чтения прайса, ничего не отправляем.
+function notifyCatalogChanges(prev: Catalog | null, next: Catalog): void {
+  if (!prev || prev === next || prev.source !== 'live' || next.source !== 'live') return;
+  const avail = (c: Catalog) => {
+    const m = new Map<string, boolean>();
+    for (const s of c.sections)
+      for (const p of s.products) m.set(p.slug, p.sizes.some((z) => z.qty >= MIN_SITE_QTY));
+    return m;
+  };
+  const before = avail(prev);
+  const after = avail(next);
+  if (before.size < 20) return;
+
+  const changed: string[] = [];
+  let removed = 0;
+  for (const [slug, ok] of after) if (!before.has(slug) || before.get(slug) !== ok) changed.push(slug);
+  for (const slug of before.keys())
+    if (!after.has(slug)) {
+      removed++;
+      changed.push(slug);
+    }
+  if (!changed.length) return;
+  if (removed > before.size * 0.3 || changed.length > 500) {
+    console.warn(`[indexnow] пропущено: подозрительно много изменений (${changed.length}, удалено ${removed})`);
+    return;
+  }
+  const paths = changed.flatMap((slug) => bothLocales(`/product/${encodeURIComponent(slug)}`));
+  void indexNowSubmit(paths, `каталог: ${changed.length} товар(ов) изменилось`);
+}
 
 // Правило ВИТРИНЫ: размер доступен только при остатке ≥ MIN_SITE_QTY (по умолч. 2).
 // Размеры с остатком 1 не показываем; товар без доступных размеров скрываем.
@@ -84,8 +118,14 @@ async function loadFresh(): Promise<Catalog> {
 
 function refresh(): Promise<Catalog> {
   if (inflight) return inflight;
+  const prev = cache;
   inflight = loadFresh()
     .then((data) => {
+      try {
+        notifyCatalogChanges(prev, data);
+      } catch {
+        /* IndexNow не должен влиять на каталог */
+      }
       cache = data;
       return data;
     })
