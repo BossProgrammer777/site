@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { getPublicCatalog, getCatalog } from '@/lib/cache';
 import type { Catalog, Product } from '@/lib/types';
 import { SiteHeader } from '@/components/SiteHeader';
@@ -18,6 +18,7 @@ import { localizeProductName } from '@/lib/productL10n';
 import { productKeywords } from '@/lib/productKeywords';
 import { productTitle, productMetaDescription } from '@/lib/productSeoText';
 import { productImageSrc } from '@/lib/img';
+import { slugify } from '@/lib/slug';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,29 @@ async function locateProduct(key: string): Promise<{ hit: Found; available: bool
   return null;
 }
 
+// Старый адрес товара после переименования в прайсе («назва-код»: назва змінилась —
+// змінився й slug). Шукаємо за кодом у кінці адреси. Редирект лише якщо код
+// збігся РІВНО з одним товаром — інакше звичайний 404, без вгадування.
+// Якщо код одного товару — суфікс коду іншого («30» і «1030»), береться довший збіг.
+async function movedProduct(key: string): Promise<Product | null> {
+  const k = key.toLowerCase();
+  const raw = await getCatalog();
+  let bestLen = 0;
+  const hits = new Map<string, Product>();
+  for (const s of raw.sections) {
+    for (const p of s.products) {
+      const c = slugify(p.code || '');
+      if (!c || !(k === c || k.endsWith(`-${c}`))) continue;
+      if (c.length > bestLen) {
+        bestLen = c.length;
+        hits.clear();
+      }
+      if (c.length === bestLen) hits.set(p.slug, p);
+    }
+  }
+  return hits.size === 1 ? Array.from(hits.values())[0] : null;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -112,7 +136,12 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
   const lh = (p: string) => localeHref(lang, p);
 
   const located = await locateProduct(key);
-  if (!located) notFound();
+  if (!located) {
+    // Товар переименовали — 308 на актуальный адрес того же языка (передаёт SEO-сигналы).
+    const moved = await movedProduct(key);
+    if (moved) permanentRedirect(lh(`/product/${encodeURIComponent(moved.slug)}`));
+    notFound();
+  }
   const { hit, available } = located;
 
   const base = siteUrl();
