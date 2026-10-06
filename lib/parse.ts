@@ -402,6 +402,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       .map((s) => stripSupplierNotes(s))
       .filter(Boolean);
     const notes = noteParts.length ? noteParts.join(' • ') : null;
+    const material = stripSupplierNotes(cellAt(row, cols.material).text) || null;
 
     const anyInStock = sizes.length ? sizes.some((s) => s.inStock) : true;
 
@@ -430,6 +431,7 @@ export function parseSheet(sheet: SheetDef, grid: Cell[][]): Product[] {
       sizes,
       sizeGrid,
       notes,
+      material,
       group: currentGroup,
       anyInStock,
       mediaUrl,

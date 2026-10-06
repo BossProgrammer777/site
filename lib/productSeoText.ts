@@ -8,8 +8,8 @@
 
 import type { Product } from './types';
 import type { Locale } from './i18n';
-import { detectBrand } from './brand';
-import { localizeProductName, localizeCountry } from './productL10n';
+import { productBrand } from './brand';
+import { localizeProductName, localizeCountry, localizeMaterial } from './productL10n';
 import { formatUAH } from './format';
 
 type Kind = 'boots' | 'turf' | 'indoor' | 'kids' | 'equip';
@@ -140,6 +140,31 @@ export function productSole(p: { name: string; group: string | null }, sectionSl
   return { code, full: s.full, surface, forText };
 }
 
+// ---- Гетры с брендом, у которых в прайсе «голое» название («Гетри») ----------
+// Для них показываем «Футбольные гетры Nike» (H1, alt, Title, схема) вместо «Гетры».
+// Узкая область: только экипировка, только гетры, только если бренд известен
+// (productBrand). Остальные товары — без изменений.
+type SeoProduct = Pick<Product, 'name' | 'group' | 'code' | 'sizes' | 'finalPrice'> & { material?: string | null };
+
+function brandedGaiters(p: SeoProduct, sectionSlug: string): string | null {
+  if (sectionKind(sectionSlug, p.name) !== 'equip') return null;
+  if (!/^\s*(гетри|гетры)\s*$/i.test(p.name)) return null;
+  return productBrand(p, sectionSlug);
+}
+
+/** Название товара для H1 / alt / хлебных крошек / Product JSON-LD. */
+export function productDisplayName(p: SeoProduct, sectionSlug: string, locale: Locale): string {
+  const brand = brandedGaiters(p, sectionSlug);
+  if (brand) return `${locale === 'ru' ? 'Футбольные гетры' : 'Футбольні гетри'} ${brand}`;
+  return localizeProductName(p.name, locale);
+}
+
+// Единственный размер в наличии («39-45» → «39–45»), иначе пусто.
+function singleSize(p: SeoProduct): string {
+  const inStock = p.sizes.filter((s) => s.inStock).map((s) => s.label);
+  return inStock.length === 1 ? inStock[0].replace(/(\d)\s*-\s*(\d)/g, '$1–$2') : '';
+}
+
 // Короткое название типа (для <title>, если в названии товара его нет).
 const TYPE_WORD = /бутс|сороконіж|сороконож|футзал|копочк|щитк|гетр|рукавиц|перчат|м.?яч|мяч|сумк|мішок|мешок|термо|шкарпет|носк/i;
 function shortType(sectionSlug: string, text: string, ru: boolean): string | null {
@@ -163,7 +188,12 @@ function shortType(sectionSlug: string, text: string, ru: boolean): string | nul
  * Заголовок товара для <title>: «тип + бренд + модель + маркировка».
  * Если тип уже есть в названии — название как есть (без дублей).
  */
-export function productTitle(p: { name: string; group: string | null }, sectionSlug: string, locale: Locale): string {
+export function productTitle(p: SeoProduct, sectionSlug: string, locale: Locale): string {
+  if (brandedGaiters(p, sectionSlug)) {
+    const size = singleSize(p);
+    const buy = locale === 'ru' ? 'купить за' : 'купити за';
+    return `${productDisplayName(p, sectionSlug, locale)}${size ? ` ${size}` : ''} — ${buy} ${formatUAH(p.finalPrice)}`;
+  }
   const name = localizeProductName(p.name, locale);
   if (TYPE_WORD.test(name)) return name;
   const type = shortType(sectionSlug, `${p.group || ''} ${p.name}`, locale === 'ru');
@@ -218,8 +248,9 @@ export interface ProductSeoText {
 export function productSeoText(p: Product, sectionSlug: string, locale: Locale): ProductSeoText {
   const ru = locale === 'ru';
   const name = localizeProductName(p.name, locale);
-  const brand = detectBrand(`${p.group || ''} ${p.name}`, sectionSlug);
+  const brand = productBrand(p, sectionSlug);
   const type = typeNoun(sectionSlug, p.name, ru);
+  const material = localizeMaterial(p.material, locale);
   const sole = productSole(p, sectionSlug, locale);
   const country = p.country ? localizeCountry(p.country, locale) : '';
   const inStock = p.sizes.filter((s) => s.inStock).map((s) => s.label);
@@ -228,24 +259,33 @@ export function productSeoText(p: Product, sectionSlug: string, locale: Locale):
 
   // ---- Связный абзац (каждое предложение опирается на разные поля товара) ----
   const s: string[] = [];
-  s.push(`${name} — ${kindLead(sectionSlug, p.name, ru, sole)}.`);
-  if (p.code) {
-    s.push(
-      ru
-        ? `Артикул — ${p.code}${country ? `, производство — ${country}` : ''}.`
-        : `Артикул — ${p.code}${country ? `, виробництво — ${country}` : ''}.`,
-    );
-  } else if (country) {
-    s.push(ru ? `Производство — ${country}.` : `Виробництво — ${country}.`);
-  }
-  if (sizesStr) {
-    s.push(ru ? `Размеры в наличии: ${sizesStr}.` : `Розміри в наявності: ${sizesStr}.`);
+  if (brandedGaiters(p, sectionSlug)) {
+    // «Гетры» + бренд: без тавтологии «Гетры — футбольные гетры».
+    const size = singleSize(p);
+    s.push(`${productDisplayName(p, sectionSlug, locale)}${size ? (ru ? `, размер ${size}` : `, розмір ${size}`) : ''}.`);
+    if (p.code) s.push(`Артикул ${p.code}.`);
+    if (material) s.push(ru ? `Состав: ${material}.` : `Склад: ${material}.`);
+    if (!size) s.push(sizesStr ? (ru ? `Размеры в наличии: ${sizesStr}.` : `Розміри в наявності: ${sizesStr}.`) : '');
   } else {
-    s.push(
-      ru
-        ? 'Наличие размеров уточняйте у менеджера.'
-        : 'Наявність розмірів уточнюйте у менеджера.',
-    );
+    s.push(`${name} — ${kindLead(sectionSlug, p.name, ru, sole)}.`);
+    if (p.code) {
+      s.push(
+        ru
+          ? `Артикул — ${p.code}${country ? `, производство — ${country}` : ''}.`
+          : `Артикул — ${p.code}${country ? `, виробництво — ${country}` : ''}.`,
+      );
+    } else if (country) {
+      s.push(ru ? `Производство — ${country}.` : `Виробництво — ${country}.`);
+    }
+    if (sizesStr) {
+      s.push(ru ? `Размеры в наличии: ${sizesStr}.` : `Розміри в наявності: ${sizesStr}.`);
+    } else {
+      s.push(
+        ru
+          ? 'Наличие размеров уточняйте у менеджера.'
+          : 'Наявність розмірів уточнюйте у менеджера.',
+      );
+    }
   }
   s.push(
     ru
@@ -267,6 +307,7 @@ export function productSeoText(p: Product, sectionSlug: string, locale: Locale):
     add(ru ? 'Подошва' : 'Підошва', `${sole.code} (${sole.full})`);
     add(ru ? 'Покрытие' : 'Покриття', sole.surface);
   }
+  add(ru ? 'Состав' : 'Склад', material);
   add(ru ? 'Артикул' : 'Артикул', p.code);
   add(ru ? 'Страна' : 'Країна', country);
   add(ru ? 'Размеры в наличии' : 'Розміри в наявності', sizesStr);
@@ -288,7 +329,7 @@ export function productSeoText(p: Product, sectionSlug: string, locale: Locale):
 
   return {
     heading: ru ? 'Описание товара' : 'Опис товару',
-    paragraph: s.join(' '),
+    paragraph: s.filter(Boolean).join(' '),
     specs,
   };
 }
@@ -296,6 +337,15 @@ export function productSeoText(p: Product, sectionSlug: string, locale: Locale):
 /** Короткая мета-описание товара: цена + покрытие + условия. */
 export function productMetaDescription(p: Product, sectionSlug: string, locale: Locale): string {
   const ru = locale === 'ru';
+  if (brandedGaiters(p, sectionSlug)) {
+    const size = singleSize(p);
+    const material = localizeMaterial(p.material, locale);
+    const head = `${productDisplayName(p, sectionSlug, locale)}${size ? ` ${size}` : ''} за ${formatUAH(p.finalPrice)}.`;
+    const mat = material ? (ru ? ` Состав: ${material}.` : ` Склад: ${material}.`) : '';
+    return ru
+      ? `${head}${mat} Оплата при получении, доставка по Украине, обмен и возврат 14 дней.`
+      : `${head}${mat} Оплата при отриманні, доставка по Україні, обмін і повернення 14 днів.`;
+  }
   const name = productTitle(p, sectionSlug, locale);
   const sole = productSole(p, sectionSlug, locale);
   const price = formatUAH(p.finalPrice);

@@ -29,6 +29,8 @@ export interface Product {
   /** Строки размерной сетки EU/UK/US/см. */
   sizeGrid: string[];
   notes: string | null;
+  /** Состав/материал из колонки «Склад» (экипировка), как в прайсе; null — не указан. */
+  material?: string | null;
   /** Подкатегория (Nike Tiempo, Adidas X …), если задана строкой-разделителем. */
   group: string | null;
   /** Есть ли хоть один размер в наличии. */

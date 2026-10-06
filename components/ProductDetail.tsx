@@ -44,10 +44,12 @@ function shippingKey(): ShipKey {
   }
 }
 
-export function ProductDetail({ product }: { product: Product }) {
+export function ProductDetail({ product, displayName }: { product: Product; displayName?: string }) {
   const { add } = useCart();
   const t = useT();
   const locale = useLocale();
+  // Название для H1 и alt — на языке страницы (с сервера; иначе — локализованное из прайса).
+  const title = displayName || localizeProductName(product.name, locale);
   // Галерея: если у товара есть список фото (напр. из CRM) — берём все; иначе главное.
   const galleryUrls = (product.images && product.images.length ? product.images : (product.image ? [product.image] : []))
     .map((u) => productImageSrc(u));
@@ -170,7 +172,7 @@ export function ProductDetail({ product }: { product: Product }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={mainBroken ? PLACEHOLDER : images[mainIdx] || PLACEHOLDER}
-            alt={product.name}
+            alt={title}
             onError={() => setMainBroken(true)}
             className="max-h-full max-w-full object-contain"
           />
@@ -232,7 +234,7 @@ export function ProductDetail({ product }: { product: Product }) {
       <div>
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-2xl font-extrabold leading-tight sm:text-3xl">
-            {localizeProductName(product.name, locale)}
+            {title}
           </h1>
           <FavoriteButton
             id={product.id}

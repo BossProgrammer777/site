@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import { Product } from './types';
-import { detectBrand } from './brand';
+import { productBrand } from './brand';
 import type { Locale } from './i18n';
 
 // Кириллические синонимы латинских брендов (для семантики поиска на RU).
@@ -76,7 +76,7 @@ export function productKeywords(p: Product, sectionSlug: string, locale: Locale)
   };
   const ru = locale === 'ru';
 
-  const brand = detectBrand(`${p.group || ''} ${p.name}`, sectionSlug);
+  const brand = productBrand(p, sectionSlug);
   if (brand) {
     add(brand);
     if (ru) (BRAND_SYN[brand] || []).forEach(add);

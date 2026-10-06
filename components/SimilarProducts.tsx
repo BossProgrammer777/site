@@ -38,7 +38,10 @@ export function SimilarProducts({
   if (shown.length === 0) return null;
 
   const title = locale === 'ru' ? 'Похожие товары' : 'Схожі товари';
-  const more = locale === 'ru' ? `Все ${categoryLabel.toLowerCase()}` : `Усі ${categoryLabel.toLowerCase()}`;
+  // Согласование: «Все бутсы», но «Вся экипировка» / «Усе екіпірування» (ед. число).
+  const label = categoryLabel.toLowerCase();
+  const plural = /[ыиі]$/.test(label.split(' ')[0]);
+  const more = locale === 'ru' ? `${plural ? 'Все' : 'Вся'} ${label}` : `${plural ? 'Усі' : 'Усе'} ${label}`;
 
   return (
     <section className="mt-14 border-t border-ink-800 pt-8">

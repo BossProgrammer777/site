@@ -8,8 +8,8 @@ import { SITE_NAME, siteUrl } from './site';
 import { PHONES, SOCIALS } from './contacts';
 import { productImageSrc } from './img';
 import type { Locale } from './i18n';
-import { productSeoText, productSole } from './productSeoText';
-import { localizeProductName, localizeCountry } from './productL10n';
+import { productSeoText, productSole, productDisplayName } from './productSeoText';
+import { localizeCountry, localizeMaterial } from './productL10n';
 
 type Loc = Record<Locale, string>;
 type LocArr = Record<Locale, string[]>;
@@ -639,7 +639,7 @@ export function productJsonLd(
     '@context': 'https://schema.org',
     '@type': 'Product',
     '@id': `${url}#product`,
-    name: localizeProductName(p.name, locale),
+    name: productDisplayName(p, sectionSlug, locale),
     description: seo.paragraph,
     url,
     image: [image],
@@ -647,6 +647,7 @@ export function productJsonLd(
     sku: p.code || p.id,
     ...(brand ? { brand: { '@type': 'Brand', name: brand } } : {}),
     ...(p.country ? { countryOfOrigin: localizeCountry(p.country, locale) } : {}),
+    ...(p.material ? { material: localizeMaterial(p.material, locale) } : {}),
     ...(additionalProperty ? { additionalProperty } : {}),
     offers: {
       '@type': 'Offer',

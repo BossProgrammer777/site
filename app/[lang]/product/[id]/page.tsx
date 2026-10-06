@@ -11,12 +11,11 @@ import { SimilarProducts } from '@/components/SimilarProducts';
 import { SelectedSizeProvider } from '@/components/SelectedSizeContext';
 import { siteUrl } from '@/lib/site';
 import { getCategorySeo, breadcrumbJsonLd, productJsonLd, jsonLdScript } from '@/lib/seo';
-import { detectBrand } from '@/lib/brand';
+import { productBrand } from '@/lib/brand';
 import { altMeta, localeHref, Locale } from '@/lib/i18n';
 import { dict, sectionLabel as localSectionLabel } from '@/lib/dictionaries';
-import { localizeProductName } from '@/lib/productL10n';
 import { productKeywords } from '@/lib/productKeywords';
-import { productTitle, productMetaDescription } from '@/lib/productSeoText';
+import { productTitle, productMetaDescription, productDisplayName } from '@/lib/productSeoText';
 import { productImageSrc } from '@/lib/img';
 import { slugify } from '@/lib/slug';
 
@@ -148,11 +147,11 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
   const { product, sectionSlug } = hit;
   // Название раздела на языке страницы (а не сырое из прайса — оно всегда UA).
   const sectionLabel = localSectionLabel(sectionSlug, hit.sectionLabel, lang);
-  const displayName = localizeProductName(product.name, lang);
+  const displayName = productDisplayName(product, sectionSlug, lang);
   const catSeo = getCategorySeo(sectionSlug);
   const catHref = catSeo ? `/catalog/${sectionSlug}` : '/catalog';
   const productUrl = `${base}${lh(`/product/${encodeURIComponent(product.slug)}`)}`;
-  const brand = detectBrand(`${product.group || ''} ${product.name}`, sectionSlug);
+  const brand = productBrand(product, sectionSlug);
 
   // Похожие товары: та же категория, только в наличии. Ранжируем по совпадению
   // слов названия/группы — так вверх идёт ТА ЖЕ модель (Tiempo→Tiempo), затем
@@ -207,7 +206,7 @@ export default async function ProductPage({ params }: { params: { lang: Locale; 
           </div>
         )}
         <SelectedSizeProvider initial={initialSize}>
-          <ProductDetail product={product} />
+          <ProductDetail product={product} displayName={displayName} />
           <ProductSeoContent product={product} sectionSlug={sectionSlug} locale={lang} />
           <SimilarProducts
             products={candidates}

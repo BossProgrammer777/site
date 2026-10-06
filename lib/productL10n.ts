@@ -48,6 +48,25 @@ export function localizeProductName(name: string, locale: Locale): string {
     .join('');
 }
 
+// Слова состава (UA из прайса) → RU.
+const MATERIAL_RU: Record<string, string> = {
+  еластан: 'эластан', бавовна: 'хлопок', поліестер: 'полиэстер', поліамід: 'полиамид',
+  вовна: 'шерсть', шкіра: 'кожа', віскоза: 'вискоза',
+};
+
+/** Состав для отображения: «97% нейлон 3% еластан» → «97% нейлон, 3% эластан» (RU). */
+export function localizeMaterial(material: string | null | undefined, locale: Locale): string {
+  let s = (material || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  // запятая между компонентами: «… нейлон 3% …» → «… нейлон, 3% …»
+  s = s.replace(/\s*,?\s+(?=\d+(?:[.,]\d+)?\s*%)/g, ', ');
+  if (locale !== 'ru') return s;
+  return s.replace(/\p{L}+/gu, (w) => {
+    const ru = MATERIAL_RU[w.toLowerCase()];
+    return ru ? (w[0] === w[0].toUpperCase() ? ru[0].toUpperCase() + ru.slice(1) : ru) : w;
+  });
+}
+
 /** Страна-производитель для отображения в текущей локали. */
 export function localizeCountry(country: string | null, locale: Locale): string {
   if (locale !== 'ru' || !country) return country || '';

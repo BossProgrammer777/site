@@ -33,6 +33,24 @@ export function detectBrand(text: string, sectionSlug = ''): string | null {
   return null;
 }
 
+// Бренд, подтверждённый вручную для товаров, у которых в прайсе бренда нет ни в
+// названии, ни в строке-группе. Ключ — «раздел:код». Используется только на
+// странице товара (SEO-тексты, характеристики, Product JSON-LD); фильтры каталога
+// и бренд-страницы по-прежнему опираются на detectBrand().
+export const BRAND_BY_CODE: Record<string, string> = {
+  'ekipiruvannia:1030': 'Nike', // Гетри (у прайсі назва без бренду; раніше «…Nike»)
+};
+
+/** Бренд товара: подтверждённый вручную (BRAND_BY_CODE) или определённый по тексту. */
+export function productBrand(
+  p: { code?: string | null; group: string | null; name: string },
+  sectionSlug: string,
+): string | null {
+  if (sectionSlug.startsWith('nb-')) return null;
+  const manual = p.code ? BRAND_BY_CODE[`${sectionSlug}:${p.code.trim()}`] : undefined;
+  return manual ?? detectBrand(`${p.group || ''} ${p.name}`, sectionSlug);
+}
+
 // Бренды, под которые делаем отдельные посадочные страницы (slug ↔ назва).
 export const BRAND_LANDINGS: { slug: string; name: string }[] = [
   { slug: 'nike', name: 'Nike' },
