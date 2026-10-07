@@ -7,7 +7,7 @@
 // Prom настраивается на автоимпорт по ссылке на этот фид — обновляется сам.
 // ---------------------------------------------------------------------------
 
-import { modelBrand } from './brand';
+import { modelBrand, isNoBrandLine } from './brand';
 import { Catalog, Product, Section } from './types';
 import { SITE_NAME, siteUrl } from './site';
 import { productImageSrc } from './img';
@@ -41,6 +41,7 @@ function delatin(s: string): string {
 }
 
 function detectBrand(text: string, sectionSlug: string): { name: string; syn: string[] } | null {
+  if (isNoBrandLine(text)) return null;
   const low = delatin(text);
   for (const b of BRANDS) if (low.includes(b.name.toLowerCase())) return b;
   // Бренд не написан — по модели («F50», «Tiempo»); для nb-* не определяем.

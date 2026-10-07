@@ -6,7 +6,7 @@ import { ProductCard } from './ProductCard';
 import { useLocale, useT } from './LocaleProvider';
 import { catLabel, catHeader } from '@/lib/dictionaries';
 import { canonModel, localizeModel, localizeCountry } from '@/lib/productL10n';
-import { modelBrand } from '@/lib/brand';
+import { modelBrand, isNoBrandLine } from '@/lib/brand';
 
 const OTHER = 'Інше';
 const NO_BRAND = 'Без бренду';
@@ -40,7 +40,7 @@ const BRAND_RULES: [RegExp, string][] = [
 ];
 function detectBrand(text: string, sectionSlug: string): string {
   // Разделы «НБ …» = No Brand: безбрендовые копії, навіть якщо назва схожа на бренд.
-  if (sectionSlug.startsWith('nb-')) return NO_BRAND;
+  if (sectionSlug.startsWith('nb-') || isNoBrandLine(text)) return NO_BRAND;
   const norm = normalize(text);
   for (const [re, name] of BRAND_RULES) if (re.test(text) || re.test(norm)) return name;
   // Бренд не написан — пробуем по модели («F50», «Tiempo»).

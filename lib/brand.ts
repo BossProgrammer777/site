@@ -35,11 +35,22 @@ const MODEL_RULES: [RegExp, string, boolean][] = [
   [/\b(morelia|monarcida)\b/i, 'Mizuno', false],
   [/\b(furon|tekela)\b/i, 'New Balance', false],
   [/\b(future|ultra)\b/i, 'Puma', true],
+  [/\bpremier\b/i, 'Nike', true], // Tiempo Premier
+  [/\bx\s+(?:crazyfast|speedportal|ghosted|\d)/i, 'Adidas', true], // «X Crazyfast», «X 25.1»
 ];
 
-/** Бренд за назвою моделі (або null). Для nb-* — завжди null. */
+// Безбрендові лінійки: назви схожі на моделі (Tezaz Future, Tezaz Mercury…),
+// але бренду в них немає — ні за назвою, ні за моделлю не визначаємо.
+const NO_BRAND_LINES = /\btezaz\b/i;
+
+/** Товар із безбрендової лінійки (Tezaz …). */
+export function isNoBrandLine(text: string): boolean {
+  return NO_BRAND_LINES.test(text);
+}
+
+/** Бренд за назвою моделі (або null). Для nb-* і безбрендових ліній — завжди null. */
 export function modelBrand(text: string, sectionSlug = ''): string | null {
-  if (sectionSlug.startsWith('nb-')) return null;
+  if (sectionSlug.startsWith('nb-') || isNoBrandLine(text)) return null;
   for (const [re, name, footwearOnly] of MODEL_RULES) {
     if (footwearOnly && !FOOTWEAR_SECTIONS.has(sectionSlug)) continue;
     if (re.test(text)) return name;
@@ -49,7 +60,7 @@ export function modelBrand(text: string, sectionSlug = ''): string | null {
 
 /** Бренд товара или null. Для разделов nb-* всегда null (без бренда). */
 export function detectBrand(text: string, sectionSlug = ''): string | null {
-  if (sectionSlug.startsWith('nb-')) return null;
+  if (sectionSlug.startsWith('nb-') || isNoBrandLine(text)) return null;
   const norm = normalize(text);
   for (const [re, name] of BRAND_RULES) if (re.test(text) || re.test(norm)) return name;
   return modelBrand(text, sectionSlug);
