@@ -131,3 +131,23 @@ export function telegramPhotoUrl(image: string | null, base: string): string | n
   if (image.startsWith('/')) return `${base}${image}`;
   return null;
 }
+
+/** Простое текстовое сообщение (HTML) в ту же группу, что и заказы. */
+export async function sendTelegramText(text: string): Promise<{ sent: boolean }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chat = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chat) {
+    console.log('[telegram] не налаштований. Повідомлення:\n' + text);
+    return { sent: false };
+  }
+  try {
+    const res = await fetch(API('sendMessage'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chat, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+    return { sent: res.ok };
+  } catch {
+    return { sent: false };
+  }
+}

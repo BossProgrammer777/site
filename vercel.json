@@ -3,6 +3,10 @@
     {
       "path": "/api/indexnow",
       "schedule": "20 6 * * *"
+    },
+    {
+      "path": "/api/catalog-health",
+      "schedule": "40 5 * * *"
     }
   ]
 }

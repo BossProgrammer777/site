@@ -14,6 +14,7 @@ import { getDemoCatalog } from './demoData';
 import { fetchCrmProducts } from './crmFeed';
 import { Catalog } from './types';
 import { indexNowSubmit, bothLocales } from './indexnow';
+import { alertCatalogChanges, alertCatalogFetchFailed } from './catalogAlerts';
 
 // Сообщаем Bing (IndexNow) о товарах, которые появились, исчезли или сменили
 // наличие с прошлого обновления прайса. Только live→live (не демо, не первый
@@ -110,6 +111,7 @@ async function loadFresh(): Promise<Catalog> {
     return await mergeCrmProducts(live);
   } catch (err) {
     console.error('[bootsbaza] live fetch failed:', (err as Error).message);
+    void alertCatalogFetchFailed((err as Error).message).catch(() => {});
     // Если раньше были живые данные — лучше отдать их, чем сломаться.
     if (cache) return cache;
     return mergeCrmProducts(getDemoCatalog());
@@ -126,6 +128,8 @@ function refresh(): Promise<Catalog> {
       } catch {
         /* IndexNow не должен влиять на каталог */
       }
+      // Telegram: новые проблемы прайса (бренды, переименования, дубли кодов…).
+      void alertCatalogChanges(prev, data).catch(() => {});
       cache = data;
       return data;
     })
