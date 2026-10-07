@@ -6,6 +6,7 @@ import { ProductCard } from './ProductCard';
 import { useLocale, useT } from './LocaleProvider';
 import { catLabel, catHeader } from '@/lib/dictionaries';
 import { canonModel, localizeModel, localizeCountry } from '@/lib/productL10n';
+import { modelBrand } from '@/lib/brand';
 
 const OTHER = 'Інше';
 const NO_BRAND = 'Без бренду';
@@ -42,7 +43,8 @@ function detectBrand(text: string, sectionSlug: string): string {
   if (sectionSlug.startsWith('nb-')) return NO_BRAND;
   const norm = normalize(text);
   for (const [re, name] of BRAND_RULES) if (re.test(text) || re.test(norm)) return name;
-  return OTHER;
+  // Бренд не написан — пробуем по модели («F50», «Tiempo»).
+  return modelBrand(text, sectionSlug) ?? OTHER;
 }
 
 // Чистим у модели ведущее слово-категорию, чтобы «Бутси Nike Mercurial» и

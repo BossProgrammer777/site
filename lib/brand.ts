@@ -25,12 +25,34 @@ const BRAND_RULES: [RegExp, string][] = [
   [/nivia|нівіа|нивия/i, 'Nivia'],
 ];
 
+// Бренд по названию модели — когда в прайсе бренд не написан («Бутси F50 FG»,
+// «Бутси Tiempo Legend 10 FG»). Только узнаваемые линейки (латиницей, целым словом).
+// Спорные слова (Future, Ultra) — только для взуття, щоб не зачепити екіпіровку.
+const FOOTWEAR_SECTIONS = new Set(['butsy', 'sorokonizhky', 'futzalky', 'dytiache-vzuttia']);
+const MODEL_RULES: [RegExp, string, boolean][] = [
+  [/\b(mercurial|superfly|vapor|phantom|tiempo|hypervenom|magista|lunar\s*gato|react\s*gato|street\s*gato|air\s*zoom|pro\s*combat)\b/i, 'Nike', false],
+  [/\b(predator|f50|copa|crazyfast|speedportal|nemeziz|mundial)\b/i, 'Adidas', false],
+  [/\b(morelia|monarcida)\b/i, 'Mizuno', false],
+  [/\b(furon|tekela)\b/i, 'New Balance', false],
+  [/\b(future|ultra)\b/i, 'Puma', true],
+];
+
+/** Бренд за назвою моделі (або null). Для nb-* — завжди null. */
+export function modelBrand(text: string, sectionSlug = ''): string | null {
+  if (sectionSlug.startsWith('nb-')) return null;
+  for (const [re, name, footwearOnly] of MODEL_RULES) {
+    if (footwearOnly && !FOOTWEAR_SECTIONS.has(sectionSlug)) continue;
+    if (re.test(text)) return name;
+  }
+  return null;
+}
+
 /** Бренд товара или null. Для разделов nb-* всегда null (без бренда). */
 export function detectBrand(text: string, sectionSlug = ''): string | null {
   if (sectionSlug.startsWith('nb-')) return null;
   const norm = normalize(text);
   for (const [re, name] of BRAND_RULES) if (re.test(text) || re.test(norm)) return name;
-  return null;
+  return modelBrand(text, sectionSlug);
 }
 
 // Бренд, подтверждённый вручную для товаров, у которых в прайсе бренда нет ни в

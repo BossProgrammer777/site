@@ -7,6 +7,7 @@
 // Prom настраивается на автоимпорт по ссылке на этот фид — обновляется сам.
 // ---------------------------------------------------------------------------
 
+import { modelBrand } from './brand';
 import { Catalog, Product, Section } from './types';
 import { SITE_NAME, siteUrl } from './site';
 import { productImageSrc } from './img';
@@ -39,10 +40,12 @@ function delatin(s: string): string {
   return s.toLowerCase().replace(/[а-яіѕј]/g, (c) => HOMOGLYPH[c] ?? c);
 }
 
-function detectBrand(text: string): { name: string; syn: string[] } | null {
+function detectBrand(text: string, sectionSlug: string): { name: string; syn: string[] } | null {
   const low = delatin(text);
   for (const b of BRANDS) if (low.includes(b.name.toLowerCase())) return b;
-  return null;
+  // Бренд не написан — по модели («F50», «Tiempo»); для nb-* не определяем.
+  const m = modelBrand(text, sectionSlug);
+  return m ? BRANDS.find((b) => b.name === m) ?? { name: m, syn: [] } : null;
 }
 
 // ---------------- синонимы типа товара по разделу ---------------------------
@@ -92,7 +95,7 @@ function buildKeywords(p: Product, section: Section): string {
     if (t) set.add(t);
   };
 
-  const brand = detectBrand(`${p.name} ${p.group || ''}`);
+  const brand = detectBrand(`${p.name} ${p.group || ''}`, section.slug);
   // Бренд + кириллические синонимы.
   if (brand) {
     add(brand.name);
@@ -193,7 +196,7 @@ export function buildPromXml(catalog: Catalog): string {
   for (const section of catalog.sections) {
     const cid = catId.get(section.slug);
     for (const p of section.products) {
-      const brand = detectBrand(`${p.name} ${p.group || ''}`);
+      const brand = detectBrand(`${p.name} ${p.group || ''}`, section.slug);
       const img = absImage(p);
       const sizes = availableSizes(p);
       const lines: string[] = [];
