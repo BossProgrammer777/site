@@ -73,34 +73,26 @@ export function catalogHealth(c: Catalog): HealthIssue[] {
     }
   }
 
-  // Одинаковые коды у разных товаров — ломают редирект со старых адресов и заказы в CRM.
-  const byCode = new Map<string, { name: string; label: string; slug: string }[]>();
-  for (const s of c.sections)
+  // Одинаковый код у разных товаров ВНУТРИ одного листа — ошибка прайса (ломает
+  // редирект со старых адресов и заказы в CRM). Одинаковый код в разных листах
+  // (дорослі й дитячі бутси — одна модель) — норма для цього постачальника.
+  const dups: string[] = [];
+  for (const s of c.sections) {
+    const byCode = new Map<string, string[]>();
     for (const p of s.products) {
       const code = (p.code || '').trim();
       if (!code) continue;
-      const list = byCode.get(code) || [];
-      list.push({ name: p.name, label: s.label, slug: p.slug });
-      byCode.set(code, list);
+      byCode.set(code, [...(byCode.get(code) || []), p.name]);
     }
-  const dups = Array.from(byCode.entries())
-    .filter(([, list]) => list.length > 1)
-    .sort(([a], [b]) => a.localeCompare(b, 'uk', { numeric: true }));
+    for (const [code, names] of byCode)
+      if (names.length > 1) dups.push(`${code}: ${names.join(' / ')} (${s.label})`);
+  }
   if (dups.length) {
-    const line = ([code, list]: [string, { name: string; label: string; slug: string }[]]) => {
-      // Одинаковый адрес (одинаковые название и код в разных листах) — один товар перекрывает другой.
-      const sameUrl = new Set(list.map((x) => x.slug)).size < list.length;
-      return `${code}: ${list.map((x) => `${x.name} (${x.label})`).join(' / ')}${sameUrl ? ' — ОДНАКОВА АДРЕСА' : ''}`;
-    };
-    const sameUrlCount = dups.filter(([, list]) => new Set(list.map((x) => x.slug)).size < list.length).length;
     out.push({
-      key: `dup:${dups.map(([c]) => c).join(',')}`,
+      key: `dup:${dups.map((d) => d.split(':')[0]).sort().join(',')}`,
       level: 'warn',
-      text:
-        `🟠 <b>Однаковий код у різних товарів: ${dups.length}</b>` +
-        (sameUrlCount ? ` (з них з однаковою адресою сторінки: ${sameUrlCount})` : '') +
-        `\n` + examples(dups.map(line)),
-      full: { title: `Однаковий код у різних товарів: ${dups.length}`, lines: dups.map(line) },
+      text: `🟠 <b>Однаковий код у різних товарів одного листа: ${dups.length}</b>\n` + examples(dups),
+      full: { title: `Однаковий код у різних товарів одного листа: ${dups.length}`, lines: dups },
     });
   }
 

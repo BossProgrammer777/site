@@ -73,18 +73,28 @@ async function locateProduct(key: string): Promise<{ hit: Found; available: bool
 }
 
 // Старый адрес товара после переименования в прайсе («назва-код»: назва змінилась —
-// змінився й slug). Шукаємо за кодом у кінці адреси. Редирект лише якщо код
-// збігся РІВНО з одним товаром — інакше звичайний 404, без вгадування.
-// Якщо код одного товару — суфікс коду іншого («30» і «1030»), береться довший збіг.
+// змінився й slug). Шукаємо за кодом у кінці адреси (також без суфікса «-2», який
+// отримує другий товар з однаковою адресою — напр. дитяча модель з кодом дорослої).
+//  - якщо код одного товару — суфікс коду іншого («30» і «1030»), береться довший збіг;
+//  - якщо код у кількох товарів (дорослі й дитячі мають однаковий код) — обираємо
+//    товар з найбільш схожою адресою; нічия — звичайний 404, без вгадування.
+const slugTokens = (s: string) => new Set(s.toLowerCase().split('-').filter(Boolean));
+function similarity(a: Set<string>, b: Set<string>): number {
+  let shared = 0;
+  for (const t of a) if (b.has(t)) shared++;
+  return shared / (a.size + b.size - shared || 1);
+}
+
 async function movedProduct(key: string): Promise<Product | null> {
   const k = key.toLowerCase();
+  const variants = Array.from(new Set([k, k.replace(/-\d+$/, '')]));
   const raw = await getCatalog();
   let bestLen = 0;
   const hits = new Map<string, Product>();
   for (const s of raw.sections) {
     for (const p of s.products) {
       const c = slugify(p.code || '');
-      if (!c || !(k === c || k.endsWith(`-${c}`))) continue;
+      if (!c || !variants.some((v) => v === c || v.endsWith(`-${c}`))) continue;
       if (c.length > bestLen) {
         bestLen = c.length;
         hits.clear();
@@ -92,7 +102,11 @@ async function movedProduct(key: string): Promise<Product | null> {
       if (c.length === bestLen) hits.set(p.slug, p);
     }
   }
-  return hits.size === 1 ? Array.from(hits.values())[0] : null;
+  const list = Array.from(hits.values());
+  if (list.length <= 1) return list[0] ?? null;
+  const kt = slugTokens(k);
+  const scored = list.map((p) => ({ p, score: similarity(kt, slugTokens(p.slug)) })).sort((a, b) => b.score - a.score);
+  return scored[0].score > scored[1].score ? scored[0].p : null;
 }
 
 export async function generateMetadata({
