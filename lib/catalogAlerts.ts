@@ -8,10 +8,21 @@
 // ---------------------------------------------------------------------------
 
 import type { Catalog } from './types';
-import { catalogDiff, catalogHealth, healthMessage, type HealthIssue } from './catalogHealth';
-import { sendTelegramText } from './telegram';
+import { catalogDiff, catalogHealth, healthMessage, healthFullText, type HealthIssue } from './catalogHealth';
+import { sendTelegramText, sendTelegramDocument } from './telegram';
 
 const REPEAT_MS = 12 * 60 * 60 * 1000;
+
+/** Сообщение + (если строк больше, чем помещается) файл с полными списками. */
+export async function sendHealthReport(title: string, issues: HealthIssue[]): Promise<boolean> {
+  const { sent } = await sendTelegramText(healthMessage(title, issues));
+  const full = healthFullText(title, issues);
+  if (full) {
+    const day = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Kyiv' });
+    await sendTelegramDocument(`perevirka-praisu-${day}.txt`, full, 'Повний список');
+  }
+  return sent;
+}
 const sentAt = new Map<string, number>();
 
 function fresh(issues: HealthIssue[], windowMs = REPEAT_MS): HealthIssue[] {
@@ -34,7 +45,7 @@ export async function alertCatalogChanges(prev: Catalog | null, next: Catalog): 
   ];
   const toSend = fresh(issues);
   if (!toSend.length) return;
-  await sendTelegramText(healthMessage('⚠️ Прайс змінився — це впливає на сайт', toSend));
+  await sendHealthReport('⚠️ Прайс змінився — це впливає на сайт', toSend);
 }
 
 /** Не удалось прочитать прайс (сайт работает на старой копии). */

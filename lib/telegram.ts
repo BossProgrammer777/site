@@ -151,3 +151,23 @@ export async function sendTelegramText(text: string): Promise<{ sent: boolean }>
     return { sent: false };
   }
 }
+
+/** Текстовый файл в ту же группу (полный список к оповещению). */
+export async function sendTelegramDocument(filename: string, content: string, caption = ''): Promise<{ sent: boolean }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chat = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chat) {
+    console.log(`[telegram] не налаштований. Файл ${filename}:\n` + content);
+    return { sent: false };
+  }
+  try {
+    const fd = new FormData();
+    fd.append('chat_id', chat);
+    if (caption) fd.append('caption', caption);
+    fd.append('document', new Blob([content], { type: 'text/plain; charset=utf-8' }), filename);
+    const res = await fetch(API('sendDocument'), { method: 'POST', body: fd });
+    return { sent: res.ok };
+  } catch {
+    return { sent: false };
+  }
+}

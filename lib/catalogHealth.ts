@@ -14,6 +14,8 @@ export interface HealthIssue {
   key: string;
   level: 'critical' | 'warn';
   text: string;
+  /** Полный список (для файла-вложения), если в тексте показаны не все строки. */
+  full?: { title: string; lines: string[] };
 }
 
 // Разделы, где бренд обязателен (фильтр «Бренд» и бренд-страницы).
@@ -65,29 +67,40 @@ export function catalogHealth(c: Catalog): HealthIssue[] {
             `🟠 <b>«${esc(s.label)}»: ${noBrand.length} з ${s.products.length} товарів без бренду</b>\n` +
             `Сайт не впізнав бренд за назвою — ці товари не потрапляють у фільтр «Бренд» і на сторінки Nike/Adidas:\n` +
             examples(noBrand.map((p) => p.name)),
+          full: { title: `«${s.label}»: товари без бренду (${noBrand.length})`, lines: noBrand.map((p) => `${p.code}: ${p.name}`) },
         });
       }
     }
   }
 
   // Одинаковые коды у разных товаров — ломают редирект со старых адресов и заказы в CRM.
-  const byCode = new Map<string, string[]>();
+  const byCode = new Map<string, { name: string; label: string; slug: string }[]>();
   for (const s of c.sections)
     for (const p of s.products) {
       const code = (p.code || '').trim();
       if (!code) continue;
       const list = byCode.get(code) || [];
-      list.push(`${p.name} (${s.label})`);
+      list.push({ name: p.name, label: s.label, slug: p.slug });
       byCode.set(code, list);
     }
-  const dups = Array.from(byCode.entries()).filter(([, list]) => list.length > 1);
+  const dups = Array.from(byCode.entries())
+    .filter(([, list]) => list.length > 1)
+    .sort(([a], [b]) => a.localeCompare(b, 'uk', { numeric: true }));
   if (dups.length) {
+    const line = ([code, list]: [string, { name: string; label: string; slug: string }[]]) => {
+      // Одинаковый адрес (одинаковые название и код в разных листах) — один товар перекрывает другой.
+      const sameUrl = new Set(list.map((x) => x.slug)).size < list.length;
+      return `${code}: ${list.map((x) => `${x.name} (${x.label})`).join(' / ')}${sameUrl ? ' — ОДНАКОВА АДРЕСА' : ''}`;
+    };
+    const sameUrlCount = dups.filter(([, list]) => new Set(list.map((x) => x.slug)).size < list.length).length;
     out.push({
-      key: `dup:${dups.map(([c]) => c).sort().join(',')}`,
+      key: `dup:${dups.map(([c]) => c).join(',')}`,
       level: 'warn',
       text:
-        `🟠 <b>Однаковий код у різних товарів: ${dups.length}</b>\n` +
-        examples(dups.map(([code, list]) => `${code}: ${list.join(' / ')}`)),
+        `🟠 <b>Однаковий код у різних товарів: ${dups.length}</b>` +
+        (sameUrlCount ? ` (з них з однаковою адресою сторінки: ${sameUrlCount})` : '') +
+        `\n` + examples(dups.map(line)),
+      full: { title: `Однаковий код у різних товарів: ${dups.length}`, lines: dups.map(line) },
     });
   }
 
@@ -98,6 +111,7 @@ export function catalogHealth(c: Catalog): HealthIssue[] {
       key: `nocode:${noCode.length}`,
       level: 'warn',
       text: `🟠 <b>Товари без коду: ${noCode.length}</b>\nПри зміні назви в них зміниться адреса без редиректу:\n` + examples(noCode),
+      full: { title: `Товари без коду: ${noCode.length}`, lines: noCode },
     });
   }
 
@@ -156,6 +170,7 @@ export function catalogDiff(prev: Catalog | null, next: Catalog): HealthIssue[] 
       text:
         `🟠 <b>Змінено назву ${renamed.length} товар(ів)</b> → змінилась адреса сторінки (старі адреси ведуть на нові через редирект). Якщо назви змінили не ви — перевірте прайс:\n` +
         examples(renamed.map((r) => r.text)),
+      full: { title: `Змінено назву: ${renamed.length}`, lines: renamed.map((r) => r.text) },
     });
   }
   return out;
@@ -170,4 +185,16 @@ export function healthMessage(title: string, issues: HealthIssue[]): string {
     .join('\n\n');
   const msg = `<b>${esc(title)}</b>\n\n${body}`;
   return msg.length > 4000 ? `${msg.slice(0, 3990)}…` : msg;
+}
+
+/** Текст файла с полными списками (если в сообщении показаны не все строки). */
+export function healthFullText(title: string, issues: HealthIssue[]): string | null {
+  const big = issues.filter((i) => i.full && i.full.lines.length > 5);
+  if (!big.length) return null;
+  const date = new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' });
+  return [
+    `${title} — ${date}`,
+    '',
+    ...big.flatMap((i) => [i.full!.title, ...i.full!.lines.map((l) => `  • ${l}`), '']),
+  ].join('\n');
 }
