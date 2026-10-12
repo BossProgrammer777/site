@@ -5,11 +5,13 @@
 //  ЗАПАСНОЕ  — если .xlsx недоступен или у товара нет встроенного фото, берём
 //              первое фото из папки Google Drive (колонка «Медіа»).
 //
-// Пишет public/photos/manifest.json: slug → (номер строки → URL/путь фото).
+// Пишет public/photos/manifest.json: slug → (номер строки → URL/путь фото);
+// файлы — public/photos/<slug>/<хэш содержимого>.<ext>.
 // Ошибки НЕ роняют сборку. При полном сбое остаётся закоммиченный fallback.
 // ---------------------------------------------------------------------------
 
 import { unzipSync } from 'fflate';
+import { createHash } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -272,8 +274,13 @@ async function main() {
       if (anchors.length) fs.mkdirSync(dir, { recursive: true });
       for (const { row, mediaPath } of anchors) {
         const ext = extInfo(mediaPath);
-        fs.writeFileSync(path.join(dir, `${row}.${ext}`), Buffer.from(files[mediaPath]));
-        (manifest[slug] ||= {})[row] = `/photos/${slug}/${row}.${ext}`;
+        // Имя файла — хэш содержимого, а не номер строки: адрес фото навсегда
+        // остаётся за этим снимком. Иначе после вставки строк в прайсе и пересборки
+        // старый адрес (сохранённый в CRM/заказах) показывал бы фото другого товара.
+        const buf = Buffer.from(files[mediaPath]);
+        const name = createHash('sha1').update(buf).digest('hex').slice(0, 16);
+        fs.writeFileSync(path.join(dir, `${name}.${ext}`), buf);
+        (manifest[slug] ||= {})[row] = `/photos/${slug}/${name}.${ext}`;
         embedded += 1;
       }
     }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPublicCatalog } from '@/lib/cache';
 import { sendTelegramOrder, telegramPhotoUrl } from '@/lib/telegram';
-import { forwardOrderToCrm } from '@/lib/crmIngest';
+import { crmImageUrl, forwardOrderToCrm } from '@/lib/crmIngest';
 import { appendOrderToSheet } from '@/lib/ordersSheet';
 import { formatUAH } from '@/lib/format';
 import { siteUrl } from '@/lib/site';
@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
         {
           code: product.code,
           name: product.name,
+          image: crmImageUrl(product.image),
           size: size || '',
           price: product.price,
           qty,

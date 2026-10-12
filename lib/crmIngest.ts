@@ -1,4 +1,16 @@
 import { sendTelegramOrder } from './telegram';
+import { siteUrl } from './site';
+
+// Абсолютный адрес фото товара для позиции заказа в CRM (как в синке каталога:
+// свои файлы — с домена сайта, внешние — через прокси сайта /api/img).
+// Шлём фото именно заказанного товара: в CRM товары ищутся по коду, а один код
+// бывает у нескольких моделей (FG/SG, взрослые/детские) — фото оттуда может быть чужим.
+export function crmImageUrl(image: string | null | undefined): string | null {
+  if (!image) return null;
+  if (image.startsWith('/')) return `${siteUrl()}${image}`;
+  if (image.startsWith('http')) return `${siteUrl()}/api/img?src=${encodeURIComponent(image)}`;
+  return null;
+}
 
 // Пересылка заказа в CRM (/api/ingest/order). В отличие от прежнего варианта —
 // НЕ глушит ошибки молча: если не настроены env, не совпал токен, CRM вернула
