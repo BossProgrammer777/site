@@ -134,6 +134,32 @@ async function downloadXlsx() {
   }
   throw lastErr || new Error('не вдалося завантажити .xlsx');
 }
+// Сжатие фото для сайта: до 1200 px по большей стороне (на сайте фото не шире
+// ~600 px, запас — для чётких экранов), JPEG, прозрачность — на белом фоне.
+// Формат JPEG, а не WebP: фото уходят ещё в Telegram, CRM (копирование) и фид Prom.
+// sharp грузим динамически: если его нет/сломался — пишем оригиналы, сборка не падает.
+const MAX_SIDE = 1200;
+async function loadSharp() {
+  try {
+    return (await import('sharp')).default;
+  } catch (e) {
+    console.warn('[extract-images] sharp недоступний — фото без стиснення:', e.message);
+    return null;
+  }
+}
+async function compressPhoto(sharp, buf) {
+  if (!sharp) return null;
+  try {
+    return await sharp(buf)
+      .rotate()
+      .resize(MAX_SIDE, MAX_SIDE, { fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
 function extInfo(name) {
   const ext = (name.split('.').pop() || 'bin').toLowerCase();
   return ext === 'jpeg' ? 'jpg' : ext;
@@ -268,23 +294,37 @@ async function main() {
     try {
       fs.rmSync(dest, { force: true });
     } catch {}
+    const sharp = await loadSharp();
+    const written = new Map(); // одна картинка может стоять в нескольких строках
+    let bytesIn = 0;
+    let bytesOut = 0;
     for (const [title, anchors] of buildAnchors(files)) {
       const slug = slugByTitle.get(title);
       const dir = path.join(OUT_DIR, slug);
       if (anchors.length) fs.mkdirSync(dir, { recursive: true });
       for (const { row, mediaPath } of anchors) {
-        const ext = extInfo(mediaPath);
-        // Имя файла — хэш содержимого, а не номер строки: адрес фото навсегда
-        // остаётся за этим снимком. Иначе после вставки строк в прайсе и пересборки
-        // старый адрес (сохранённый в CRM/заказах) показывал бы фото другого товара.
-        const buf = Buffer.from(files[mediaPath]);
-        const name = createHash('sha1').update(buf).digest('hex').slice(0, 16);
-        fs.writeFileSync(path.join(dir, `${name}.${ext}`), buf);
-        (manifest[slug] ||= {})[row] = `/photos/${slug}/${name}.${ext}`;
+        let url = written.get(`${slug}:${mediaPath}`);
+        if (!url) {
+          // Имя файла — хэш ИСХОДНОГО содержимого, а не номер строки: адрес фото
+          // навсегда остаётся за этим снимком. Иначе после вставки строк в прайсе и
+          // пересборки старый адрес (в CRM/заказах) показывал бы фото другого товара.
+          const buf = Buffer.from(files[mediaPath]);
+          const name = createHash('sha1').update(buf).digest('hex').slice(0, 16);
+          const small = await compressPhoto(sharp, buf);
+          // Сжатое — только если оно реально меньше; иначе (или если sharp не справился) — оригинал.
+          const [out, ext] = small && small.length < buf.length ? [small, 'jpg'] : [buf, extInfo(mediaPath)];
+          fs.writeFileSync(path.join(dir, `${name}.${ext}`), out);
+          url = `/photos/${slug}/${name}.${ext}`;
+          written.set(`${slug}:${mediaPath}`, url);
+          bytesIn += buf.length;
+          bytesOut += out.length;
+        }
+        (manifest[slug] ||= {})[row] = url;
         embedded += 1;
       }
     }
-    console.log(`[extract-images] вбудованих фото: ${embedded}`);
+    const mb = (n) => (n / 1048576).toFixed(1);
+    console.log(`[extract-images] вбудованих фото: ${embedded} (файлів ${written.size}, ${mb(bytesIn)} → ${mb(bytesOut)} МБ)`);
   } catch (e) {
     console.warn('[extract-images] .xlsx недоступний, лишаються Drive-фото:', e.message);
   }
