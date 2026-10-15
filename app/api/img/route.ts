@@ -36,7 +36,10 @@ export async function GET(req: NextRequest) {
     return new NextResponse(res.body, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        // s-maxage — кэш на CDN Vercel (без него CDN ответ функции не кэширует и
+        // каждый новый посетитель/бот снова запускает функцию и качает фото из Google).
+        // Фото по одному адресу Drive не меняется; ошибки (редирект на плейсхолдер) не кэшируются.
+        'Cache-Control': 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=604800',
       },
     });
   } catch {
