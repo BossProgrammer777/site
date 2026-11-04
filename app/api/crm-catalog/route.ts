@@ -36,8 +36,10 @@ export async function GET(req: NextRequest) {
     })),
   );
 
+  // source: 'live' — настоящий прайс; 'demo' — сайт не смог прочитать Google-таблицу
+  // и показывает демо-товары. CRM по 'demo' синхронизацию не делает.
   return NextResponse.json(
-    { ok: true, count: products.length, products },
+    { ok: true, source: catalog.source, count: products.length, products },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
