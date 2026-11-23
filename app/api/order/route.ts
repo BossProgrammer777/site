@@ -140,6 +140,9 @@ export async function POST(req: NextRequest) {
       refDetail: body.srcDetail || '',
       paymentMethod: /передопла|предопла/i.test(payment || '') ? 'BANK_TRANSFER' : 'COD',
       comment: body.comment?.trim() || '',
+      // Знижка за промокодом (на все замовлення) — щоб у CRM сума збігалась із сайтом.
+      promo: discount > 0 && promo ? promo.code : '',
+      discount,
       items: lines.map((l) => ({
         code: l.code,
         name: l.name,
